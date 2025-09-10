@@ -159,41 +159,39 @@ const deleteCamera = async (id: number | undefined) => {
 				<label for="keepStreamsOpen">Keep streams open (improves startup performance, uses more resources)</label>
 			</div>
 		</div>
-		<div v-if="cameras.length" class="camera-list">
-			<ul>
-				<li v-for="camera in cameras" :key="camera.id">
-					<div v-if="editingCamera && editingCamera.id === camera.id" class="edit-form">
-						<h3>Edit Camera</h3>
-						<div>
-							<label :for="`editName-${camera.id}`">Name:</label>
-							<input type="text" :id="`editName-${camera.id}`" v-model="editingCamera.name" required />
-						</div>
-						<div>
-							<label :for="`editRtspUrl-${camera.id}`">RTSP URL:</label>
-							<input type="text" :id="`editRtspUrl-${camera.id}`" v-model="editingCamera.rtspUrl" required />
-						</div>
-						<div>
-							<label :for="`editOnvifUrl-${camera.id}`">ONVIF URL (Optional):</label>
-							<input type="text" :id="`editOnvifUrl-${camera.id}`" v-model="editingCamera.onvifUrl" />
-						</div>
-						<div>
-							<label :for="`editUsername-${camera.id}`">Username:</label>
-							<input type="text" :id="`editUsername-${camera.id}`" v-model="editingCamera.username" required />
-						</div>
-						<div>
-							<label :for="`editPassword-${camera.id}`">Password:</label>
-							<input type="password" :id="`editPassword-${camera.id}`" v-model="editingCamera.password" required />
-						</div>
-						<button @click="saveCamera">Save</button>
-						<button @click="cancelEdit">Cancel</button>
+		<ul v-if="cameras.length" class="camera-list">
+			<li v-for="camera in cameras" :key="camera.id">
+				<div v-if="editingCamera && editingCamera.id === camera.id" class="edit-form">
+					<h3>Edit Camera</h3>
+					<div>
+						<label :for="`editName-${camera.id}`">Name:</label>
+						<input type="text" :id="`editName-${camera.id}`" v-model="editingCamera.name" required />
 					</div>
-					<div v-else> {{ camera.name }} ({{ camera.rtspUrl }}) <button @click="editCamera(camera)">Edit</button>
-						<button @click="deleteCamera(camera.id)" class="delete-button">Delete</button>
-						<CameraStream v-if="camera.id" :camera-id="camera.id" :rtsp-url="camera.rtspUrl" />
+					<div>
+						<label :for="`editRtspUrl-${camera.id}`">RTSP URL:</label>
+						<input type="text" :id="`editRtspUrl-${camera.id}`" v-model="editingCamera.rtspUrl" required />
 					</div>
-				</li>
-			</ul>
-		</div>
+					<div>
+						<label :for="`editOnvifUrl-${camera.id}`">ONVIF URL (Optional):</label>
+						<input type="text" :id="`editOnvifUrl-${camera.id}`" v-model="editingCamera.onvifUrl" />
+					</div>
+					<div>
+						<label :for="`editUsername-${camera.id}`">Username:</label>
+						<input type="text" :id="`editUsername-${camera.id}`" v-model="editingCamera.username" required />
+					</div>
+					<div>
+						<label :for="`editPassword-${camera.id}`">Password:</label>
+						<input type="password" :id="`editPassword-${camera.id}`" v-model="editingCamera.password" required />
+					</div>
+					<button @click="saveCamera">Save</button>
+					<button @click="cancelEdit">Cancel</button>
+				</div>
+				<div v-else> {{ camera.name }} ({{ camera.rtspUrl }}) <button @click="editCamera(camera)">Edit</button>
+					<button @click="deleteCamera(camera.id)" class="delete-button">Delete</button>
+					<CameraStream v-if="camera.id" :camera-id="camera.id" :rtsp-url="camera.rtspUrl" />
+				</div>
+			</li>
+		</ul>
 		<div class="form-and-discovery-container">
 			<div class="add-camera">
 				<h2>Add a Camera</h2>
@@ -257,22 +255,20 @@ const deleteCamera = async (id: number | undefined) => {
 	display: flex;
 	gap: 30px;
 	width: 100%;
-	/* Space between the form and discovery sections */
 	align-items: flex-start;
-	/* Align items to the top */
 	margin-bottom: 30px;
 }
 
 .add-camera {
 	flex-grow: 1;
+	padding: 15px;
+	border: 1px solid #ccc;
+	border-radius: 8px;
 }
 
 .add-camera,
 .camera-list {
 	margin-bottom: 30px;
-	padding: 15px;
-	border: 1px solid #ccc;
-	border-radius: 8px;
 }
 
 .edit-form {
