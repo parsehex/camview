@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import { Play, Square } from 'lucide-vue-next';
+import { Play, Square, RotateCw } from 'lucide-vue-next';
 import mpegts from 'mpegts.js';
 import PtzControls from './PtzControls.vue';
+import { delay } from '@/utils';
 
 const props = defineProps<{
 	cameraId: number;
@@ -41,6 +42,13 @@ const toggleStream = () => {
 	} else {
 		startStream();
 	}
+};
+
+const restartStream = async () => {
+	console.log('Restarting stream...');
+	stopStream();
+	await delay(50);
+	startStream();
 };
 
 const startStream = () => {
@@ -108,10 +116,15 @@ onBeforeUnmount(() => {
 		<div class="camera-stream">
 			<div class="video-and-controls">
 				<video ref="videoRef" controls autoplay muted></video>
-				<button @click="toggleStream" :class="['stream-toggle-button', isStreaming ? 'is-streaming' : '']">
-					<Square v-if="isStreaming" />
-					<Play v-else />
-				</button>
+				<div class="stream-buttons">
+					<button v-if="isStreaming" @click="restartStream" class="restart-stream-button">
+						<RotateCw />
+					</button>
+					<button @click="toggleStream" :class="['stream-toggle-button', isStreaming ? 'is-streaming' : '']">
+						<Square v-if="isStreaming" />
+						<Play v-else />
+					</button>
+				</div>
 			</div>
 		</div>
 		<PtzControls v-if="onvifControlAvailable" :camera-id="cameraId" :send-ptz-command="sendPtzCommand" />
@@ -178,6 +191,37 @@ video {
 	display: flex;
 	align-items: center;
 	gap: 10px;
+}
+
+.stream-buttons {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	/* Space between the buttons */
+}
+
+.restart-stream-button {
+	background-color: #ffc107;
+	/* A distinct color, e.g., yellow for restart */
+	color: white;
+	border: none;
+	border-radius: 50%;
+	width: 40px;
+	height: 40px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+	padding: 0;
+}
+
+.restart-stream-button:hover {
+	background-color: #e0a800;
+}
+
+.restart-stream-button .lucide {
+	stroke: white;
 }
 
 button {
