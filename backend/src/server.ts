@@ -5,6 +5,12 @@ import { OnvifDevice, Discovery } from 'node-onvif';
 import { WebSocket } from 'ws';
 import ffmpeg from 'fluent-ffmpeg';
 import { Readable } from 'stream';
+import {
+	CameraDbRow,
+	CameraRequestBody,
+	CameraUpdateRequestBody,
+	OnvifDeviceInstance,
+} from './types/camera';
 
 // Extend the Express Application type to include the 'ws' property from express-ws
 interface WsApplication extends Application {
@@ -91,9 +97,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 	next();
 });
 
-// Utility function to wait for a given number of milliseconds
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 // Initialize SQLite database
 const db = new sqlite3.Database('./camview.db', (err: Error | null) => {
 	if (err) {
@@ -125,45 +128,6 @@ const db = new sqlite3.Database('./camview.db', (err: Error | null) => {
 app.get('/', (req: Request, res: Response) => {
 	res.send('Camview Backend is running!');
 });
-
-interface CameraRequestBody {
-	name: string;
-	host: string;
-	username?: string;
-	password?: string;
-}
-
-interface CameraUpdateRequestBody {
-	name: string;
-	rtspUrl: string;
-	onvifUrl?: string;
-	username?: string;
-	password?: string;
-}
-
-interface CameraDbRow {
-	id: number;
-	name: string;
-	rtspUrl: string;
-	onvifUrl: string;
-	username: string;
-	password?: string;
-}
-
-// Updated OnvifDevice interface to match node-onvif's OnvifDevice
-interface OnvifDeviceInstance {
-	urn: string;
-	name: string;
-	xaddrs: string[];
-	ptz: any;
-	init(): Promise<void>;
-	getStreamUri(options: { protocol: 'RTSP' }): Promise<{ uri: string }>;
-	ptzMove(options: {
-		speed: { x?: number; y?: number; z?: number };
-		timeout?: number;
-	}): Promise<void>;
-	ptzStop(): Promise<void>;
-}
 
 // Add a new camera
 app.post(
