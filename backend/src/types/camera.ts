@@ -35,4 +35,11 @@ export interface OnvifDeviceInstance {
 		timeout?: number;
 	}): Promise<void>;
 	ptzStop(): Promise<void>;
+
+	// correct:
+	current_profile: any;
+	services: {
+		ptz: any;
+		[key: string]: any;
+	};
 }
