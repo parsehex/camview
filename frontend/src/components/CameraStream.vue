@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+import { Play, Square } from 'lucide-vue-next';
 import mpegts from 'mpegts.js';
 
 const props = defineProps<{
@@ -13,11 +14,7 @@ const sendPtzCommand = async (command: string, speed: number = 0.5) => {
 	// The backend will fetch ONVIF URL, username, and password from the database
 	// based on the cameraId.
 	try {
-		// In a real application, you would send this to your backend
-		// which then uses the 'onvif' library to control the camera.
 		console.log(`Sending ONVIF PTZ command: ${command} with speed ${speed} to camera ${props.cameraId}`);
-		// Example: You might send a WebSocket message or an HTTP request to your backend
-		// ws.send(JSON.stringify({ type: 'ptz', command, speed }));
 		const response = await fetch(`http://localhost:3000/api/onvif/control/${props.cameraId}`, {
 			method: 'POST',
 			headers: {
@@ -35,6 +32,15 @@ const sendPtzCommand = async (command: string, speed: number = 0.5) => {
 const videoRef = ref<HTMLVideoElement | null>(null);
 let ws: WebSocket | null = null;
 let mpegtsPlayer: mpegts.Player | null = null;
+const isStreaming = ref(false);
+
+const toggleStream = () => {
+	if (isStreaming.value) {
+		stopStream();
+	} else {
+		startStream();
+	}
+};
 
 const startStream = () => {
 	if (!props.rtspUrl) {
@@ -59,6 +65,7 @@ const startStream = () => {
 			mpegtsPlayer.attachMediaElement(videoRef.value);
 			mpegtsPlayer.load();
 			mpegtsPlayer?.play();
+			isStreaming.value = true;
 
 
 			mpegtsPlayer.on(mpegts.Events.ERROR, (errorType, errorDetail, errorInfo) => {
@@ -87,6 +94,7 @@ const stopStream = () => {
 	if (videoRef.value) {
 		videoRef.value.src = '';
 	}
+	isStreaming.value = false;
 	console.log('Stream stopped.');
 };
 
@@ -96,10 +104,14 @@ onBeforeUnmount(() => {
 </script>
 <template>
 	<div class="camera-stream">
-		<h3>Stream for {{ rtspUrl }}</h3>
+		<div class="camera-header">
+			<h3>Stream for {{ rtspUrl }}</h3>
+			<button @click="toggleStream" :class="['stream-toggle-button', isStreaming ? 'is-streaming' : '']">
+				<Square v-if="isStreaming" />
+				<Play v-else />
+			</button>
+		</div>
 		<video ref="videoRef" controls autoplay muted></video>
-		<button @click="startStream">Start Stream</button>
-		<button @click="stopStream">Stop Stream</button>
 		<div v-if="onvifControlAvailable" class="onvif-controls">
 			<h4>PTZ Controls</h4>
 			<div class="ptz-buttons">
@@ -114,6 +126,45 @@ onBeforeUnmount(() => {
 	</div>
 </template>
 <style scoped>
+.camera-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 10px;
+}
+
+.stream-toggle-button {
+	background-color: #28a745;
+	color: white;
+	border: none;
+	border-radius: 50%;
+	width: 40px;
+	height: 40px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+	padding: 0;
+}
+
+.stream-toggle-button:hover {
+	background-color: #218838;
+}
+
+.stream-toggle-button .lucide {
+	stroke: white;
+}
+
+/* Style for stop icon when streaming */
+.stream-toggle-button.is-streaming {
+	background-color: #dc3545;
+}
+
+.stream-toggle-button.is-streaming:hover {
+	background-color: #c82333;
+}
+
 .camera-stream {
 	margin-top: 20px;
 	border: 1px solid #eee;
@@ -147,13 +198,14 @@ video {
 }
 
 button {
-	margin-right: 10px;
+	/* General button styles */
 	padding: 8px 12px;
 	background-color: #007bff;
 	color: white;
 	border: none;
 	border-radius: 4px;
 	cursor: pointer;
+	margin-right: 10px;
 }
 
 button:hover {
