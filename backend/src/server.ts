@@ -1,9 +1,8 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import * as expressWs from 'express-ws';
 import { WebSocket } from 'ws';
-import { db } from './utils/db';
-import { connectToExistingCameras } from './utils/db';
-import cameraRoutes, { cameraStreamWs } from './routes/camera';
+import cameraRoutes from './routes/camera';
+import { cameraStreamWs } from './routes/stream-ws';
 
 // Extend the Express Application type to include the 'ws' property from express-ws
 interface WsApplication extends Application {
