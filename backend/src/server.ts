@@ -17,6 +17,62 @@ type ExpressWsMethod = (
 	callback: (ws: WebSocket, req: Request) => void
 ) => void;
 
+const deviceCache = new Map<string, any>();
+async function getDevice(
+	xaddr: string,
+	user = '',
+	pass = '',
+	cacheKey: string
+) {
+	let device: any;
+	if (cacheKey && deviceCache.get(cacheKey)) {
+		device = deviceCache.get(cacheKey);
+		console.log('Using cached camera connection');
+	} else {
+		console.log('Opening new camera connection');
+		device = new OnvifDevice({
+			xaddr,
+			user,
+			pass,
+		});
+		await device.init();
+		if (cacheKey) deviceCache.set(cacheKey, device);
+	}
+	return device;
+}
+
+async function connectToExistingCameras() {
+	console.log('Attempting to connect to existing cameras...');
+	db.all<CameraDbRow>(`SELECT * FROM cameras`, [], async (err, rows) => {
+		if (err) {
+			console.error(
+				'Error fetching cameras for initial connection:',
+				err.message
+			);
+			return;
+		}
+		for (const camera of rows) {
+			try {
+				const host = new URL(camera.onvifUrl).hostname;
+				await getDevice(
+					camera.onvifUrl,
+					camera.username,
+					camera.password,
+					'camera-' + camera.name
+				);
+				console.log(
+					`Successfully reconnected to camera: ${camera.name} (${host})`
+				);
+			} catch (error: any) {
+				console.error(
+					`Failed to reconnect to camera ${camera.name}: ${error.message}`
+				);
+			}
+		}
+		console.log('Finished attempting to connect to existing cameras.');
+	});
+}
+
 const app: WsApplication = express() as any;
 const port: number = 3000;
 
@@ -58,6 +114,7 @@ const db = new sqlite3.Database('./camview.db', (err: Error | null) => {
 					console.error('Error creating cameras table:', err.message);
 				} else {
 					console.log('Cameras table created or already exists.');
+					connectToExistingCameras();
 				}
 			}
 		);
@@ -119,13 +176,12 @@ app.post(
 
 		try {
 			console.log(`Attempting to connect to ONVIF device at host: ${host}`);
-			const device = new OnvifDevice({
-				xaddr: `http://${host}:8899/onvif/device_service`, // Assuming a common ONVIF port and path
-				user: username,
-				pass: password,
-			});
-
-			await device.init();
+			const device = await getDevice(
+				`http://${host}:8899/onvif/device_service`,
+				username,
+				password,
+				'camera-' + name
+			);
 			console.log('CONNECTED to camera:', host);
 
 			let discoveredRtspUrl: string;
@@ -290,7 +346,7 @@ app.post(
 					return res.status(404).json({ error: 'Camera not found.' });
 				}
 
-				const { onvifUrl, username, password } = camera;
+				const { name, onvifUrl, username, password } = camera;
 				const { command, speed } = req.body;
 
 				if (!onvifUrl) {
@@ -300,14 +356,12 @@ app.post(
 				}
 
 				try {
-					const device = new OnvifDevice({
-						xaddr: onvifUrl,
-						user: username,
-						pass: password,
-					});
-
-					await device.init(); // Initialize the device
-					console.log('CONNECTED to camera for PTZ control:', onvifUrl);
+					const device = await getDevice(
+						onvifUrl,
+						username,
+						password,
+						'camera-' + name
+					);
 
 					let ptzSpeed: { x?: number; y?: number; z?: number };
 					switch (command) {
