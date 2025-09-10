@@ -1,7 +1,7 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import * as expressWs from 'express-ws';
 import * as sqlite3 from 'sqlite3';
-import * as onvif from 'node-onvif';
+import { OnvifDevice, Discovery } from 'node-onvif'; // Import specific classes
 import { WebSocket } from 'ws';
 
 // Extend the Express Application type to include the 'ws' property from express-ws
@@ -32,6 +32,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 	res.header('Access-Control-Allow-Methods', '*');
 	next();
 });
+
+// Utility function to wait for a given number of milliseconds
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Initialize SQLite database
 const db = new sqlite3.Database('./camview.db', (err: Error | null) => {
@@ -88,21 +91,25 @@ interface CameraDbRow {
 	password?: string;
 }
 
-interface OnvifDevice {
+// Updated OnvifDevice interface to match node-onvif's OnvifDevice
+interface OnvifDeviceInstance {
 	urn: string;
 	name: string;
 	xaddrs: string[];
-	ptz: any; // Will be properly typed in onvifService.ts
-	getStreamUri(
-		options: { protocol: 'RTSP' },
-		callback: (err: Error | null, stream: { uri: string }) => void
-	): void;
+	ptz: any;
+	init(): Promise<void>;
+	getStreamUri(options: { protocol: 'RTSP' }): Promise<{ uri: string }>;
+	ptzMove(options: {
+		speed: { x?: number; y?: number; z?: number };
+		timeout?: number;
+	}): Promise<void>;
+	ptzStop(): Promise<void>;
 }
 
 // Add a new camera
 app.post(
 	'/api/cameras',
-	(req: Request<{}, {}, CameraRequestBody>, res: Response) => {
+	async (req: Request<{}, {}, CameraRequestBody>, res: Response) => {
 		const { name, host, username, password } = req.body;
 		if (!name || !host) {
 			return res.status(400).json({ error: 'Name and Host are required.' });
@@ -110,89 +117,50 @@ app.post(
 
 		try {
 			console.log(`Attempting to connect to ONVIF device at host: ${host}`);
-			new onvif.Cam(
-				{
-					hostname: host,
-					username: username,
-					password: password,
-					port: 80,
-				},
-				function (err: Error | null, device: OnvifDevice) {
-					if (err) {
-						console.error(
-							'Connection Failed for ' +
-								host +
-								' Username: ' +
-								username +
-								' Password: ' +
-								password,
-							err
-						);
-						return res
-							.status(500)
-							.json({ error: `Failed to connect to camera: ${err.message}` });
+			const device = new OnvifDevice({
+				xaddr: `http://${host}:8899/onvif/device_service`, // Assuming a common ONVIF port and path
+				user: username,
+				pass: password,
+			});
+
+			await device.init();
+			console.log('CONNECTED to camera:', host);
+
+			let discoveredRtspUrl: string;
+			try {
+				const { stream } = device.current_profile;
+				discoveredRtspUrl = stream.rtsp;
+			} catch (streamErr: any) {
+				console.warn(
+					`Could not get RTSP stream URI from ONVIF device at ${host}:`,
+					streamErr.message
+				);
+				discoveredRtspUrl = `rtsp://${host}:554/stream`; // Fallback RTSP URL
+			}
+
+			const onvifUrl = device.services.ptz?.xaddr;
+
+			db.run(
+				`INSERT INTO cameras (name, rtspUrl, onvifUrl, username, password) VALUES (?, ?, ?, ?, ?)`,
+				[name, discoveredRtspUrl, onvifUrl, username, password],
+				function (this: sqlite3.RunResult, dbErr: Error | null) {
+					if (dbErr) {
+						return res.status(500).json({ error: dbErr.message });
 					}
-					console.log('CONNECTED to camera:', host);
-
-					device.getStreamUri(
-						{ protocol: 'RTSP' },
-						function (err: Error | null, stream: { uri: string }) {
-							if (err) {
-								console.warn(
-									`Could not get RTSP stream URI from ONVIF device at ${host}:`,
-									err.message
-								);
-								let discoveredRtspUrl = `rtsp://${host}:554/stream`;
-								const onvifUrl = device.xaddrs[0];
-								db.run(
-									`INSERT INTO cameras (name, rtspUrl, onvifUrl, username, password) VALUES (?, ?, ?, ?, ?)`,
-									[name, discoveredRtspUrl, onvifUrl, username, password],
-									function (this: sqlite3.RunResult, dbErr: Error | null) {
-										if (dbErr) {
-											return res.status(500).json({ error: dbErr.message });
-										}
-										res.status(201).json({
-											id: this.lastID,
-											name,
-											rtspUrl: discoveredRtspUrl,
-											onvifUrl,
-											username,
-											password,
-										});
-									}
-								);
-								return;
-							}
-
-							const discoveredRtspUrl = stream.uri;
-							const onvifUrl = device.xaddrs[0];
-
-							db.run(
-								`INSERT INTO cameras (name, rtspUrl, onvifUrl, username, password) VALUES (?, ?, ?, ?, ?)`,
-								[name, discoveredRtspUrl, onvifUrl, username, password],
-								function (this: sqlite3.RunResult, dbErr: Error | null) {
-									if (dbErr) {
-										return res.status(500).json({ error: dbErr.message });
-									}
-									res.status(201).json({
-										id: this.lastID,
-										name,
-										rtspUrl: discoveredRtspUrl,
-										onvifUrl,
-										username,
-										password,
-									});
-								}
-							);
-						}
-					);
+					res.status(201).json({
+						id: this.lastID,
+						name,
+						rtspUrl: discoveredRtspUrl,
+						onvifUrl,
+						username,
+						password,
+					});
 				}
 			);
-		} catch (error: unknown) {
+		} catch (error: any) {
 			console.error('Error adding camera:', error);
 			return res.status(500).json({
-				error:
-					error instanceof Error ? error.message : 'An unknown error occurred',
+				error: `Failed to connect to camera or initialize: ${error.message}`,
 			});
 		}
 	}
@@ -275,18 +243,21 @@ app.delete(
 // ONVIF Discovery
 app.get('/api/onvif/discover', async (req: Request, res: Response) => {
 	console.log('Starting ONVIF discovery...');
-	const devices: OnvifDevice[] = [];
-	onvif.Discovery.on('device', (device: OnvifDevice) => {
+	const devices: OnvifDeviceInstance[] = []; // Use the updated interface
+	Discovery.on('device', (device: OnvifDeviceInstance) => {
 		console.log('Discovered ONVIF device:', device);
 		devices.push({
 			urn: device.urn,
 			name: device.name,
 			xaddrs: device.xaddrs,
 			ptz: device.ptz,
+			init: device.init,
 			getStreamUri: device.getStreamUri,
+			ptzMove: device.ptzMove,
+			ptzStop: device.ptzStop,
 		});
 	});
-	onvif.Discovery.probe();
+	Discovery.probe();
 
 	// Stop probing after a timeout (e.g., 5 seconds)
 	setTimeout(() => {
@@ -307,7 +278,8 @@ app.post(
 		db.get<CameraDbRow>(
 			`SELECT * FROM cameras WHERE id = ?`,
 			[cameraId],
-			(err: Error | null, camera: CameraDbRow | undefined) => {
+			async (err: Error | null, camera: CameraDbRow | undefined) => {
+				// Added async here
 				if (err) {
 					console.error('Error fetching camera details:', err);
 					return res.status(500).json({ error: err.message });
@@ -326,78 +298,55 @@ app.post(
 					});
 				}
 
-				new onvif.Cam(
-					{
-						hostname: onvifUrl.split('/')[2].split(':')[0],
-						username: username,
-						password: password,
-						port: parseInt(onvifUrl.split('/')[2].split(':')[1] || '80'),
-					},
-					function (err: Error | null, device: OnvifDevice) {
-						if (err) {
-							console.error('Connection Failed for ONVIF PTZ control:', err);
-							return res.status(500).json({
-								error: `Failed to connect to camera for PTZ control: ${err.message}`,
-							});
-						}
+				try {
+					const device = new OnvifDevice({
+						xaddr: onvifUrl,
+						user: username,
+						pass: password,
+					});
 
-						const ptz = device.ptz;
-						if (!ptz) {
-							return res
-								.status(500)
-								.json({ error: 'PTZ service not available for this device.' });
-						}
+					await device.init(); // Initialize the device
+					console.log('CONNECTED to camera for PTZ control:', onvifUrl);
 
-						let ptzCommand: { x?: number; y?: number; zoom?: number };
-						switch (command) {
-							case 'moveUp':
-								ptzCommand = { y: speed };
-								break;
-							case 'moveDown':
-								ptzCommand = { y: -speed };
-								break;
-							case 'moveLeft':
-								ptzCommand = { x: -speed };
-								break;
-							case 'moveRight':
-								ptzCommand = { x: speed };
-								break;
-							case 'zoomIn':
-								ptzCommand = { zoom: speed };
-								break;
-							case 'zoomOut':
-								ptzCommand = { zoom: -speed };
-								break;
-							case 'stop':
-								ptzCommand = { x: 0, y: 0, zoom: 0 };
-								break;
-							default:
-								return res.status(400).json({ error: 'Invalid PTZ command.' });
-						}
-
-						if (command === 'stop') {
-							ptz.stop({ panTilt: true, zoom: true }, (err: Error | null) => {
-								if (err) {
-									console.error('Error stopping PTZ:', err);
-									return res.status(500).json({ error: err.message });
-								}
-								res.json({
-									message: `PTZ stop command sent to camera ${cameraId}.`,
-								});
+					let ptzSpeed: { x?: number; y?: number; z?: number };
+					switch (command) {
+						case 'moveUp':
+							ptzSpeed = { y: speed };
+							break;
+						case 'moveDown':
+							ptzSpeed = { y: -speed };
+							break;
+						case 'moveLeft':
+							ptzSpeed = { x: -speed };
+							break;
+						case 'moveRight':
+							ptzSpeed = { x: speed };
+							break;
+						case 'zoomIn':
+							ptzSpeed = { z: speed };
+							break;
+						case 'zoomOut':
+							ptzSpeed = { z: -speed };
+							break;
+						case 'stop':
+							await device.ptzStop();
+							return res.json({
+								message: `PTZ stop command sent to camera ${cameraId}.`,
 							});
-						} else {
-							ptz.continuousMove(ptzCommand, (err: Error | null) => {
-								if (err) {
-									console.error('Error sending continuous move command:', err);
-									return res.status(500).json({ error: err.message });
-								}
-								res.json({
-									message: `PTZ ${command} command sent to camera ${cameraId}.`,
-								});
-							});
-						}
+						default:
+							return res.status(400).json({ error: 'Invalid PTZ command.' });
 					}
-				);
+
+					await device.ptzMove({ speed: ptzSpeed });
+					res.json({
+						message: `PTZ ${command} command sent to camera ${cameraId}.`,
+					});
+				} catch (error: any) {
+					console.error('Error sending PTZ command:', error);
+					return res.status(500).json({
+						error: `Failed to send PTZ command: ${error.message}`,
+					});
+				}
 			}
 		);
 	}
