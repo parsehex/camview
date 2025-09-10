@@ -31,10 +31,9 @@ const sendPtzCommand = async (command: string, speed: number = 0.5) => {
 	}
 };
 
-const videoRef = ref<HTMLVideoElement | null>(null);
+const imageRef = ref<HTMLImageElement | null>(null);
 let ws: WebSocket | null = null;
-let mediaSource: MediaSource | null = null;
-let sourceBuffer: SourceBuffer | null = null;
+let imageUrl: string | null = null;
 
 const startStream = () => {
 	if (!props.rtspUrl) {
@@ -47,44 +46,26 @@ const startStream = () => {
 	// to play the RTSP stream, potentially transcoded by the backend.
 	console.log(`Attempting to start stream for camera ${props.cameraId} from ${props.rtspUrl}`);
 
-	// Example: Using a WebSocket to receive video data (requires backend transcoding)
 	ws = new WebSocket(`ws://localhost:3000/api/camera/${props.cameraId}/stream`);
+	ws.binaryType = 'arraybuffer'; // Set binaryType to arraybuffer to receive binary data
 
 	ws.onopen = () => {
 		console.log('WebSocket connected for streaming.');
-		if (videoRef.value) {
-			mediaSource = new MediaSource();
-			videoRef.value.src = URL.createObjectURL(mediaSource);
-
-			mediaSource.addEventListener('sourceopen', () => {
-				if (mediaSource && mediaSource.readyState === 'open') {
-					// You'll need to know the codec of your RTSP stream.
-					// For H.264, it might be 'video/mp4; codecs="avc1.42E01E"'
-					// For simplicity, let's assume a common one for now.
-					// In a real scenario, the backend would tell the frontend the codec.
-					const mimeCodec = 'video/webm; codecs="vp8"'; // Example codec, adjust as needed
-
-					if (MediaSource.isTypeSupported(mimeCodec)) {
-						sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
-						sourceBuffer.addEventListener('updateend', () => {
-							if (mediaSource && mediaSource.readyState === 'open' && sourceBuffer && !sourceBuffer.updating) {
-								// If there's more data to append, do it here.
-								// This is a simplified example. Real implementations manage buffer queues.
-							}
-						});
-					} else {
-						console.error('Unsupported MIME type or codec:', mimeCodec);
-					}
-				}
-			});
-		}
 	};
 
 	ws.onmessage = (event) => {
-		if (sourceBuffer && !sourceBuffer.updating) {
-			const data = new Uint8Array(event.data); // Assuming binary data
-			sourceBuffer.appendBuffer(data);
+		const arrayBuffer = event.data;
+		const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
+		const newImageUrl = URL.createObjectURL(blob);
+
+		if (imageRef.value) {
+			imageRef.value.src = newImageUrl;
 		}
+
+		if (imageUrl) {
+			URL.revokeObjectURL(imageUrl); // Clean up previous object URL
+		}
+		imageUrl = newImageUrl;
 	};
 
 	ws.onclose = () => {
@@ -103,15 +84,13 @@ const stopStream = () => {
 		ws.close();
 		ws = null;
 	}
-	if (videoRef.value) {
-		videoRef.value.src = '';
-		videoRef.value.load();
+	if (imageRef.value) {
+		imageRef.value.src = '';
 	}
-	if (mediaSource && mediaSource.readyState === 'open') {
-		mediaSource.endOfStream();
+	if (imageUrl) {
+		URL.revokeObjectURL(imageUrl);
+		imageUrl = null;
 	}
-	mediaSource = null;
-	sourceBuffer = null;
 	console.log('Stream stopped.');
 };
 
@@ -122,7 +101,7 @@ onBeforeUnmount(() => {
 <template>
 	<div class="camera-stream">
 		<h3>Stream for {{ rtspUrl }}</h3>
-		<video ref="videoRef" controls autoplay muted></video>
+		<img ref="imageRef" alt="Camera Stream" />
 		<button @click="startStream">Start Stream</button>
 		<button @click="stopStream">Stop Stream</button>
 		<div v-if="onvifControlAvailable" class="onvif-controls">
@@ -164,7 +143,7 @@ onBeforeUnmount(() => {
 	background-color: #5a6268;
 }
 
-video {
+img {
 	width: 100%;
 	max-width: 640px;
 	display: block;

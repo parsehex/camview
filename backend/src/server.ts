@@ -1,8 +1,10 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import * as expressWs from 'express-ws';
 import * as sqlite3 from 'sqlite3';
-import { OnvifDevice, Discovery } from 'node-onvif'; // Import specific classes
+import { OnvifDevice, Discovery } from 'node-onvif';
 import { WebSocket } from 'ws';
+import ffmpeg from 'fluent-ffmpeg';
+import { Readable } from 'stream';
 
 // Extend the Express Application type to include the 'ws' property from express-ws
 interface WsApplication extends Application {
@@ -291,10 +293,9 @@ app.post(
 				const { onvifUrl, username, password } = camera;
 				const { command, speed } = req.body;
 
-				if (!onvifUrl || !username || !password) {
+				if (!onvifUrl) {
 					return res.status(400).json({
-						error:
-							'Camera details (ONVIF URL, username, password) are required for control.',
+						error: 'ONVIF URL is required for control.',
 					});
 				}
 
@@ -352,23 +353,114 @@ app.post(
 	}
 );
 
-// WebSocket for camera streaming (placeholder for now)
-app.ws('/api/camera/:id/stream', (ws: WebSocket, req: Request) => {
+// WebSocket for camera streaming
+app.ws('/api/camera/:id/stream', async (ws: WebSocket, req: Request) => {
 	const cameraId: string = req.params.id;
 	console.log(`WebSocket connection established for camera ${cameraId}`);
 
-	ws.on('message', (msg: string) => {
-		console.log(`Received message for camera ${cameraId}: ${msg}`);
-		// Here you would typically forward this message to the camera or a streaming process
-	});
+	// Fetch camera details from the database
+	db.get<CameraDbRow>(
+		`SELECT * FROM cameras WHERE id = ?`,
+		[cameraId],
+		async (err: Error | null, camera: CameraDbRow | undefined) => {
+			if (err) {
+				console.error('Error fetching camera details for streaming:', err);
+				ws.send(JSON.stringify({ error: 'Failed to fetch camera details.' }));
+				ws.close();
+				return;
+			}
+			if (!camera) {
+				ws.send(JSON.stringify({ error: 'Camera not found.' }));
+				ws.close();
+				return;
+			}
 
-	ws.on('close', () => {
-		console.log(`WebSocket connection closed for camera ${cameraId}`);
-	});
+			const { rtspUrl, username, password } = camera;
 
-	ws.on('error', (error: Error) => {
-		console.error(`WebSocket error for camera ${cameraId}:`, error);
-	});
+			if (!rtspUrl) {
+				ws.send(
+					JSON.stringify({ error: 'RTSP URL not available for this camera.' })
+				);
+				ws.close();
+				return;
+			}
+
+			// Construct RTSP URL with credentials if available
+			let rtspStreamUrl = rtspUrl;
+			if (username && password) {
+				const url = new URL(rtspUrl);
+				url.username = username;
+				url.password = password;
+				rtspStreamUrl = url.toString();
+			}
+
+			console.log(`Attempting to stream from RTSP URL: ${rtspStreamUrl}`);
+
+			const ffmpegCommand = ffmpeg(rtspStreamUrl)
+				.inputOptions([
+					'-rtsp_transport',
+					'tcp', // Use TCP for RTSP
+					'-buffer_size',
+					'1024000', // Increase buffer size
+				])
+				.outputOptions([
+					'-f',
+					'mjpeg', // Output format as MJPEG
+					'-q:v',
+					'5', // Video quality (1-31, 1 is best)
+					'-r',
+					'10', // Frame rate
+					'-s',
+					'640x480', // Resolution
+				])
+				.on('start', (commandLine) => {
+					console.log('FFmpeg process started with command:', commandLine);
+				})
+				.on('codecData', (data) => {
+					console.log('FFmpeg codec data:', data);
+				})
+				.on('error', (ffmpegErr, stdout, stderr) => {
+					console.error(
+						`FFmpeg error for camera ${cameraId}:`,
+						ffmpegErr.message
+					);
+					console.error('FFmpeg stdout:', stdout);
+					console.error('FFmpeg stderr:', stderr);
+					if (ws.readyState === WebSocket.OPEN) {
+						ws.send(
+							JSON.stringify({ error: `FFmpeg error: ${ffmpegErr.message}` })
+						);
+						ws.close();
+					}
+				})
+				.on('end', () => {
+					console.log(`FFmpeg process ended for camera ${cameraId}`);
+					if (ws.readyState === WebSocket.OPEN) {
+						ws.close();
+					}
+				});
+
+			const stream = ffmpegCommand.pipe() as Readable;
+
+			stream.on('data', (chunk) => {
+				if (ws.readyState === WebSocket.OPEN) {
+					ws.send(chunk);
+				}
+			});
+
+			ws.on('close', () => {
+				console.log(
+					`WebSocket connection closed for camera ${cameraId}. Stopping FFmpeg.`
+				);
+				ffmpegCommand.kill('SIGKILL'); // Ensure FFmpeg process is killed
+			});
+
+			ws.on('error', (error: Error) => {
+				console.error(`WebSocket error for camera ${cameraId}:`, error);
+				ffmpegCommand.kill('SIGKILL');
+			});
+		}
+	);
 });
 
 app.listen(port, () => {
