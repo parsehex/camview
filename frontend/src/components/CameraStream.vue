@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue';
+import mpegts from 'mpegts.js';
 
 const props = defineProps<{
 	cameraId: number;
@@ -31,9 +32,9 @@ const sendPtzCommand = async (command: string, speed: number = 0.5) => {
 	}
 };
 
-const imageRef = ref<HTMLImageElement | null>(null);
+const videoRef = ref<HTMLVideoElement | null>(null);
 let ws: WebSocket | null = null;
-let imageUrl: string | null = null;
+let mpegtsPlayer: mpegts.Player | null = null;
 
 const startStream = () => {
 	if (!props.rtspUrl) {
@@ -41,42 +42,37 @@ const startStream = () => {
 		return;
 	}
 
-	// Placeholder for actual RTSP streaming logic
-	// In a real application, you would use a library like `mpegts.js` or `hls.js`
-	// to play the RTSP stream, potentially transcoded by the backend.
 	console.log(`Attempting to start stream for camera ${props.cameraId} from ${props.rtspUrl}`);
 
-	ws = new WebSocket(`ws://localhost:3000/api/camera/${props.cameraId}/stream`);
-	ws.binaryType = 'arraybuffer'; // Set binaryType to arraybuffer to receive binary data
+	if (mpegts.isSupported()) {
+		if (videoRef.value) {
+			mpegtsPlayer = mpegts.createPlayer({
+				type: 'mpegts',
+				isLive: true,
+				url: `ws://localhost:3000/api/camera/${props.cameraId}/stream`,
+			}, {
+				// Optional: Adjust buffer settings for lower latency
+				// liveBufferLatencyChasing: true,
+				// liveBufferLatencyMaxLatency: 0.5, // seconds
+				// liveBufferLatencyMinRemain: 0.1, // seconds
+			});
+			mpegtsPlayer.attachMediaElement(videoRef.value);
+			mpegtsPlayer.load();
+			mpegtsPlayer?.play();
 
-	ws.onopen = () => {
-		console.log('WebSocket connected for streaming.');
-	};
 
-	ws.onmessage = (event) => {
-		const arrayBuffer = event.data;
-		const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
-		const newImageUrl = URL.createObjectURL(blob);
+			mpegtsPlayer.on(mpegts.Events.ERROR, (errorType, errorDetail, errorInfo) => {
+				console.error('mpegts.js error:', errorType, errorDetail, errorInfo);
+				stopStream();
+			});
 
-		if (imageRef.value) {
-			imageRef.value.src = newImageUrl;
+			console.log('mpegts.js player initialized and attempting to play.');
+		} else {
+			console.error('Video element not found.');
 		}
-
-		if (imageUrl) {
-			URL.revokeObjectURL(imageUrl); // Clean up previous object URL
-		}
-		imageUrl = newImageUrl;
-	};
-
-	ws.onclose = () => {
-		console.log('WebSocket disconnected.');
-		stopStream();
-	};
-
-	ws.onerror = (error) => {
-		console.error('WebSocket error:', error);
-		stopStream();
-	};
+	} else {
+		console.error('MPEG-TS is not supported in this browser.');
+	}
 };
 
 const stopStream = () => {
@@ -84,12 +80,12 @@ const stopStream = () => {
 		ws.close();
 		ws = null;
 	}
-	if (imageRef.value) {
-		imageRef.value.src = '';
+	if (mpegtsPlayer) {
+		mpegtsPlayer.destroy();
+		mpegtsPlayer = null;
 	}
-	if (imageUrl) {
-		URL.revokeObjectURL(imageUrl);
-		imageUrl = null;
+	if (videoRef.value) {
+		videoRef.value.src = '';
 	}
 	console.log('Stream stopped.');
 };
@@ -101,7 +97,7 @@ onBeforeUnmount(() => {
 <template>
 	<div class="camera-stream">
 		<h3>Stream for {{ rtspUrl }}</h3>
-		<img ref="imageRef" alt="Camera Stream" />
+		<video ref="videoRef" controls autoplay muted></video>
 		<button @click="startStream">Start Stream</button>
 		<button @click="stopStream">Stop Stream</button>
 		<div v-if="onvifControlAvailable" class="onvif-controls">
@@ -143,12 +139,11 @@ onBeforeUnmount(() => {
 	background-color: #5a6268;
 }
 
-img {
+video {
 	width: 100%;
 	max-width: 640px;
 	display: block;
-	margin: 10px 0;
-	background-color: black;
+	margin: auto;
 }
 
 button {

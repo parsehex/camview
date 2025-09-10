@@ -59,13 +59,31 @@ export const cameraStreamWs = async (ws: WebSocket, req: Request) => {
 				])
 				.outputOptions([
 					'-f',
-					'mjpeg', // Output format as MJPEG
-					'-q:v',
-					'5', // Video quality (1-31, 1 is best)
+					'mpegts', // Output format as MPEG-TS
+					'-codec:v',
+					'libx264', // Video codec H.264
+					'-preset',
+					'ultrafast', // Faster encoding
+					'-tune',
+					'zerolatency', // Optimize for low latency
 					'-r',
-					'10', // Frame rate
+					'25', // Frame rate (e.g., 25 fps)
 					'-s',
-					'640x480', // Resolution
+					'1280x720', // Resolution (e.g., 1280x720)
+					'-b:v',
+					'1000k', // Video bitrate (e.g., 1000 kbps)
+					'-maxrate',
+					'1000k',
+					'-bufsize',
+					'2000k',
+					'-codec:a',
+					'aac', // Audio codec AAC
+					'-b:a',
+					'128k', // Audio bitrate
+					'-ar',
+					'44100', // Audio sample rate
+					'-ac',
+					'2', // Stereo audio
 				])
 				.on('start', (commandLine) => {
 					console.log('FFmpeg process started with command:', commandLine);
