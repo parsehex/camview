@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import * as sqlite3 from 'sqlite3';
-import { Discovery } from 'node-onvif';
+import onvif from 'node-onvif';
 import {
 	CameraDbRow,
 	CameraRequestBody,
@@ -148,30 +148,26 @@ router.delete(
 // ONVIF Discovery
 router.get('/api/onvif/discover', async (req: Request, res: Response) => {
 	console.log('Starting ONVIF discovery...');
-	const devices: OnvifDeviceInstance[] = []; // Use the updated interface
-	Discovery.on('device', (device: OnvifDeviceInstance) => {
-		console.log('Discovered ONVIF device:', device);
-		devices.push({
-			urn: device.urn,
-			name: device.name,
-			xaddrs: device.xaddrs,
-			ptz: device.ptz,
-			init: device.init,
-			getStreamUri: device.getStreamUri,
-			ptzMove: device.ptzMove,
-			ptzStop: device.ptzStop,
+	try {
+		const device_info_list = await onvif.startProbe();
+		console.log(
+			`ONVIF discovery finished. Found devices: ${device_info_list.length}`
+		);
+		const devices: OnvifDeviceInstance[] = device_info_list.map(
+			(info: any) => ({
+				urn: info.urn,
+				name: info.name,
+				xaddrs: info.xaddrs,
 
-			current_profile: device.current_profile,
-			services: device.services,
-		});
-	});
-	Discovery.probe();
-
-	// Stop probing after a timeout (e.g., 5 seconds)
-	setTimeout(() => {
-		console.log('ONVIF discovery finished. Found devices:', devices.length);
+				device: JSON.stringify(info),
+				// e.g. { "urn":"urn:uuid:2419d68a-2dd2-21b2-a205-WVCA98N9UDMRWQYZ", "name":"","hardware":"", "location":"china", "types":["tdn:NetworkVideoTransmitter"], "xaddrs":["http://192.168.0.103:8899/onvif/device_service"], "scopes":["","onvif://www.onvif.org/Profile/Streaming","onvif://www.onvif.org/Model/631GA","onvif://www.onvif.org/Name/IPCAM","onvif://www.onvif.org/location/country/china"] }
+			})
+		);
 		res.json(devices);
-	}, 5000);
+	} catch (error: any) {
+		console.error('ONVIF discovery error:', error);
+		res.status(500).json({ error: error.message });
+	}
 });
 
 // ONVIF PTZ Control

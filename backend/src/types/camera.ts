@@ -22,24 +22,22 @@ export interface CameraDbRow {
 	password?: string;
 }
 
-// this is not correct
 export interface OnvifDeviceInstance {
 	urn: string;
 	name: string;
 	xaddrs: string[];
-	ptz: any;
-	init(): Promise<void>;
-	getStreamUri(options: { protocol: 'RTSP' }): Promise<{ uri: string }>;
-	ptzMove(options: {
-		speed: { x?: number; y?: number; z?: number };
-		timeout?: number;
-	}): Promise<void>;
-	ptzStop(): Promise<void>;
 
-	// correct:
 	current_profile: any;
 	services: {
 		ptz: any;
 		[key: string]: any;
 	};
+
+	// methods available once connected:
+	init(): Promise<void>;
+	ptzMove(options: {
+		speed: { x?: number; y?: number; z?: number };
+		timeout?: number;
+	}): Promise<void>;
+	ptzStop(): Promise<void>;
 }
