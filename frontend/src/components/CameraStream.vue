@@ -105,7 +105,7 @@ onBeforeUnmount(() => {
 		<button @click="startStream">Start Stream</button>
 		<button @click="stopStream">Stop Stream</button>
 		<div v-if="onvifControlAvailable" class="onvif-controls">
-			<h4>ONVIF PTZ Controls</h4>
+			<h4>PTZ Controls</h4>
 			<div class="ptz-buttons">
 				<button @mousedown="sendPtzCommand('moveUp')" @mouseup="sendPtzCommand('stop')">Up</button>
 				<button @mousedown="sendPtzCommand('moveLeft')" @mouseup="sendPtzCommand('stop')">Left</button>

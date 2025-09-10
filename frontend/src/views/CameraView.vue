@@ -106,29 +106,7 @@ const deleteCamera = async (id: number | undefined) => {
 <template>
 	<div class="camera-view">
 		<h1>Camera Management</h1>
-		<div class="add-camera">
-			<h2>Add New Camera</h2>
-			<form @submit.prevent="addCamera">
-				<div>
-					<label for="newName">Name:</label>
-					<input type="text" id="newName" v-model="newCamera.name" required />
-				</div>
-				<div>
-					<label for="newHost">Camera Host (IP or Domain):</label>
-					<input type="text" id="newHost" v-model="newCamera.rtspUrl" required />
-				</div>
-				<div>
-					<label for="newUsername">Username:</label>
-					<input type="text" id="newUsername" v-model="newCamera.username" />
-				</div>
-				<div>
-					<label for="newPassword">Password:</label>
-					<input type="password" id="newPassword" v-model="newCamera.password" />
-				</div>
-				<button type="submit">Add Camera</button>
-			</form>
-		</div>
-		<div class="camera-list">
+		<div v-if="cameras.length" class="camera-list">
 			<h2>Existing Cameras</h2>
 			<ul>
 				<li v-for="camera in cameras" :key="camera.id">
@@ -157,14 +135,34 @@ const deleteCamera = async (id: number | undefined) => {
 						<button @click="saveCamera">Save</button>
 						<button @click="cancelEdit">Cancel</button>
 					</div>
-					<div v-else> {{ camera.name }} ({{ camera.rtspUrl }}) <span v-if="camera.onvifUrl"> - ONVIF: {{
-						camera.onvifUrl }}</span>
-						<button @click="editCamera(camera)">Edit</button>
+					<div v-else> {{ camera.name }} ({{ camera.rtspUrl }}) <button @click="editCamera(camera)">Edit</button>
 						<button @click="deleteCamera(camera.id)" class="delete-button">Delete</button>
 						<CameraStream v-if="camera.id" :camera-id="camera.id" :rtsp-url="camera.rtspUrl" />
 					</div>
 				</li>
 			</ul>
+		</div>
+		<div class="add-camera">
+			<h2>Add New Camera</h2>
+			<form @submit.prevent="addCamera">
+				<div>
+					<label for="newName">Name:</label>
+					<input type="text" id="newName" v-model="newCamera.name" required />
+				</div>
+				<div>
+					<label for="newHost">Camera Host (IP or Domain):</label>
+					<input type="text" id="newHost" v-model="newCamera.rtspUrl" required />
+				</div>
+				<div>
+					<label for="newUsername">Username:</label>
+					<input type="text" id="newUsername" v-model="newCamera.username" />
+				</div>
+				<div>
+					<label for="newPassword">Password:</label>
+					<input type="password" id="newPassword" v-model="newCamera.password" />
+				</div>
+				<button type="submit">Add Camera</button>
+			</form>
 		</div>
 		<div class="onvif-discovery">
 			<h2>ONVIF Discovery</h2>
