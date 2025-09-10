@@ -2,6 +2,7 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { Play, Square } from 'lucide-vue-next';
 import mpegts from 'mpegts.js';
+import PtzControls from './PtzControls.vue';
 
 const props = defineProps<{
 	cameraId: number;
@@ -103,36 +104,20 @@ onBeforeUnmount(() => {
 });
 </script>
 <template>
-	<div class="camera-stream">
-		<div class="camera-header">
-			<h3>Stream for {{ rtspUrl }}</h3>
-			<button @click="toggleStream" :class="['stream-toggle-button', isStreaming ? 'is-streaming' : '']">
-				<Square v-if="isStreaming" />
-				<Play v-else />
-			</button>
-		</div>
-		<video ref="videoRef" controls autoplay muted></video>
-		<div v-if="onvifControlAvailable" class="onvif-controls">
-			<h4>PTZ Controls</h4>
-			<div class="ptz-buttons">
-				<button @mousedown="sendPtzCommand('moveUp')" @mouseup="sendPtzCommand('stop')">Up</button>
-				<button @mousedown="sendPtzCommand('moveLeft')" @mouseup="sendPtzCommand('stop')">Left</button>
-				<button @mousedown="sendPtzCommand('moveRight')" @mouseup="sendPtzCommand('stop')">Right</button>
-				<button @mousedown="sendPtzCommand('moveDown')" @mouseup="sendPtzCommand('stop')">Down</button>
-				<button @mousedown="sendPtzCommand('zoomIn')" @mouseup="sendPtzCommand('stop')">Zoom In</button>
-				<button @mousedown="sendPtzCommand('zoomOut')" @mouseup="sendPtzCommand('stop')">Zoom Out</button>
+	<div class="camera-stream-container">
+		<div class="camera-stream">
+			<div class="video-and-controls">
+				<video ref="videoRef" controls autoplay muted></video>
+				<button @click="toggleStream" :class="['stream-toggle-button', isStreaming ? 'is-streaming' : '']">
+					<Square v-if="isStreaming" />
+					<Play v-else />
+				</button>
 			</div>
 		</div>
+		<PtzControls v-if="onvifControlAvailable" :camera-id="cameraId" :send-ptz-command="sendPtzCommand" />
 	</div>
 </template>
 <style scoped>
-.camera-header {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	margin-bottom: 10px;
-}
-
 .stream-toggle-button {
 	background-color: #28a745;
 	color: white;
@@ -165,36 +150,33 @@ onBeforeUnmount(() => {
 	background-color: #c82333;
 }
 
-.camera-stream {
+.camera-stream-container {
+	display: flex;
+	gap: 20px;
 	margin-top: 20px;
+}
+
+.camera-stream {
+	flex-grow: 1;
 	border: 1px solid #eee;
 	padding: 10px;
 	border-radius: 8px;
 	background-color: #f0f0f0;
-}
-
-.onvif-controls {
-	margin-top: 20px;
-	padding: 10px;
-	border: 1px solid #ddd;
-	border-radius: 8px;
-	background-color: #e9e9e9;
-}
-
-.ptz-buttons button {
-	margin: 5px;
-	background-color: #6c757d;
-}
-
-.ptz-buttons button:hover {
-	background-color: #5a6268;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 video {
 	width: 100%;
 	max-width: 640px;
 	display: block;
-	margin: auto;
+}
+
+.video-and-controls {
+	display: flex;
+	align-items: center;
+	gap: 10px;
 }
 
 button {

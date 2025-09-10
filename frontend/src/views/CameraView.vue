@@ -150,9 +150,10 @@ const deleteCamera = async (id: number | undefined) => {
 <template>
 	<div class="camera-view">
 		<h1>Camera Management</h1>
-		<div class="app-settings">
+		<div class="app-settings" v-if="false">
 			<h2>Application Settings</h2>
 			<div>
+				<!-- doesn't work especially well -->
 				<input type="checkbox" id="keepStreamsOpen" v-model="appSettings.keep_streams_open"
 					@change="updateKeepStreamsOpenSetting" />
 				<label for="keepStreamsOpen">Keep streams open (improves startup performance, uses more resources)</label>
@@ -350,17 +351,9 @@ ul {
 }
 
 li {
-	background-color: #f9f9f9;
 	border: 1px solid #eee;
 	padding: 10px;
 	margin-bottom: 8px;
 	border-radius: 4px;
-	cursor: pointer;
-	/* Add cursor pointer to indicate clickable */
-}
-
-li:hover {
-	background-color: #e0e0e0;
-	/* Add hover effect */
 }
 </style>
