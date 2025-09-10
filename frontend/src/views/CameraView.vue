@@ -25,6 +25,18 @@ const discoverOnvifDevices = async () => {
 	}
 };
 
+const selectDevice = (device: any) => {
+	if (device.xaddrs && device.xaddrs.length > 0) {
+		try {
+			const url = new URL(device.xaddrs[0]);
+			newCamera.value.rtspUrl = url.hostname;
+		} catch (error) {
+			console.error('Error parsing device xaddr URL:', error);
+			newCamera.value.rtspUrl = device.xaddrs[0]; // Fallback to full URL if parsing fails
+		}
+	}
+};
+
 const fetchCameras = async () => {
 	try {
 		const response = await fetch('http://localhost:3000/api/cameras');
@@ -107,7 +119,6 @@ const deleteCamera = async (id: number | undefined) => {
 	<div class="camera-view">
 		<h1>Camera Management</h1>
 		<div v-if="cameras.length" class="camera-list">
-			<h2>Existing Cameras</h2>
 			<ul>
 				<li v-for="camera in cameras" :key="camera.id">
 					<div v-if="editingCamera && editingCamera.id === camera.id" class="edit-form">
@@ -142,41 +153,53 @@ const deleteCamera = async (id: number | undefined) => {
 				</li>
 			</ul>
 		</div>
-		<div class="add-camera">
-			<h2>Add New Camera</h2>
-			<form @submit.prevent="addCamera">
-				<div>
-					<label for="newName">Name:</label>
-					<input type="text" id="newName" v-model="newCamera.name" required />
-				</div>
-				<div>
-					<label for="newHost">Camera Host (IP or Domain):</label>
-					<input type="text" id="newHost" v-model="newCamera.rtspUrl" required />
-				</div>
-				<div>
-					<label for="newUsername">Username:</label>
-					<input type="text" id="newUsername" v-model="newCamera.username" />
-				</div>
-				<div>
-					<label for="newPassword">Password:</label>
-					<input type="password" id="newPassword" v-model="newCamera.password" />
-				</div>
-				<button type="submit">Add Camera</button>
-			</form>
-		</div>
-		<div class="onvif-discovery">
-			<h2>ONVIF Discovery</h2>
-			<button @click="discoverOnvifDevices">Discover Devices</button>
-			<ul>
-				<li v-for="device in discoveredDevices" :key="device.urn"> {{ device.name }} ({{ device.urn }}) - {{
-					device.xaddrs.join(', ') }} </li>
-			</ul>
+		<div class="form-and-discovery-container">
+			<div class="add-camera">
+				<h2>Add a Camera</h2>
+				<form @submit.prevent="addCamera">
+					<div>
+						<label for="newName">Name:</label>
+						<input type="text" id="newName" v-model="newCamera.name" required />
+					</div>
+					<div>
+						<label for="newHost">Host (IP or Domain):</label>
+						<input type="text" id="newHost" placeholder="127.0.0.1" v-model="newCamera.rtspUrl" required />
+					</div>
+					<div>
+						<label for="newUsername">Username:</label>
+						<input type="text" id="newUsername" v-model="newCamera.username" />
+					</div>
+					<div>
+						<label for="newPassword">Password:</label>
+						<input type="password" id="newPassword" v-model="newCamera.password" />
+					</div>
+					<button type="submit">Add</button>
+				</form>
+			</div>
+			<div class="onvif-discovery">
+				<h2>Discover Cameras</h2>
+				<button @click="discoverOnvifDevices">Discover Devices</button>
+				<ul>
+					<li v-for="device in discoveredDevices" :key="device.urn" @click="selectDevice(device)"> {{ device.name }} {{
+						device.xaddrs.join(', ') }} </li>
+				</ul>
+			</div>
 		</div>
 	</div>
 </template>
 <style scoped>
-.camera-view {
-	padding: 20px;
+.form-and-discovery-container {
+	display: flex;
+	gap: 30px;
+	width: 100%;
+	/* Space between the form and discovery sections */
+	align-items: flex-start;
+	/* Align items to the top */
+	margin-bottom: 30px;
+}
+
+.add-camera {
+	flex-grow: 1;
 }
 
 .add-camera,
@@ -221,7 +244,6 @@ const deleteCamera = async (id: number | undefined) => {
 }
 
 .onvif-discovery {
-	margin-top: 30px;
 	padding: 15px;
 	border: 1px solid #ccc;
 	border-radius: 8px;
@@ -269,5 +291,12 @@ li {
 	padding: 10px;
 	margin-bottom: 8px;
 	border-radius: 4px;
+	cursor: pointer;
+	/* Add cursor pointer to indicate clickable */
+}
+
+li:hover {
+	background-color: #e0e0e0;
+	/* Add hover effect */
 }
 </style>
