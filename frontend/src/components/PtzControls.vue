@@ -49,8 +49,8 @@ const onvifControlAvailable = ref(true); // This will be passed from parent or d
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	justify-content: center;
 	padding: 10px;
+	padding-top: 50px;
 	border: 1px solid #ddd;
 	border-radius: 8px;
 	background-color: #e9e9e9;

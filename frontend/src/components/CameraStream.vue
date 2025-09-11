@@ -206,13 +206,12 @@ onBeforeUnmount(() => {
 				</div>
 			</div>
 			<div v-if="showOllamaControls" class="ollama-controls">
-				<h3>Ollama AI Query</h3>
+				<h3>Ollama Query</h3>
 				<textarea v-model="ollamaPrompt" @input="saveOllamaPrompt" placeholder="Enter your prompt for Ollama..."
 					rows="4"></textarea>
 				<button @click="queryOllama" :disabled="isQueryingOllama"> {{ isQueryingOllama ? 'Querying...' : 'Query Ollama'
 				}} </button>
 				<div v-if="ollamaResponse || ollamaImage" class="ollama-response">
-					<h4>Response:</h4>
 					<img v-if="ollamaImage" :src="ollamaImage" alt="Query Image" class="ollama-query-image" />
 					<p>{{ ollamaResponse }}</p>
 				</div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import OllamaModelSelect from '../components/OllamaModelSelect.vue';
 
 interface AppSettings {
 	keep_streams_open: boolean;
@@ -65,8 +66,8 @@ onMounted(async () => {
 			</div>
 			<div class="setting-item">
 				<label for="ollamaModel">Ollama Model:</label>
-				<input type="text" id="ollamaModel" v-model="appSettings.ollamaModel" @change="updateSetting('ollamaModel')"
-					placeholder="e.g., llava" />
+				<OllamaModelSelect :ollama-host="appSettings.ollamaHost || ''" :model="appSettings.ollamaModel || ''"
+					@update:model="appSettings.ollamaModel = $event; updateSetting('ollamaModel')" />
 			</div>
 		</div>
 	</div>
@@ -104,6 +105,8 @@ h1 {
 	display: flex;
 	align-items: center;
 	margin-bottom: 15px;
+	flex-wrap: wrap;
+	/* Allow items to wrap on smaller screens */
 }
 
 .setting-item label {
@@ -117,6 +120,11 @@ h1 {
 .setting-item input[type="checkbox"] {
 	margin-right: 10px;
 	width: auto;
+}
+
+/* Adjustments for the new component */
+.setting-item .ollama-model-select-container {
+	flex-grow: 1;
 }
 
 .setting-item input[type="text"] {
