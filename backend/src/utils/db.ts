@@ -1,173 +1,73 @@
-import * as sqlite3 from 'sqlite3';
+import Database from 'better-sqlite3';
 import { CameraDbRow } from '../types/camera';
 import { AppSetting } from '../types/app-settings';
 import { getDevice } from './onvif';
 
-export const db = new sqlite3.Database('./camview.db', (err: Error | null) => {
-	if (err) {
-		console.error('Error opening database:', err.message);
-	} else {
-		console.log('Connected to the SQLite database.');
-		db.run(
-			`CREATE TABLE IF NOT EXISTS cameras (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            rtspUrl TEXT NOT NULL,
-            onvifUrl TEXT,
-            username TEXT,
-            password TEXT
-        )`,
-			(err: Error | null) => {
-				if (err) {
-					console.error('Error creating cameras table:', err.message);
-				} else {
-					console.log('Cameras table created or already exists.');
-					connectToExistingCameras();
-					db.run(
-						`CREATE TABLE IF NOT EXISTS app_settings (
-							key TEXT PRIMARY KEY,
-							value TEXT
-						)`,
-						(err: Error | null) => {
-							if (err) {
-								console.error(
-									'Error creating app_settings table:',
-									err.message
-								);
-							} else {
-								console.log('App settings table created or already exists.');
-								// Initialize default settings if they don't exist
-								db.get(
-									`SELECT value FROM app_settings WHERE key = 'keep_streams_open'`,
-									(err, row: AppSetting | undefined) => {
-										if (err) {
-											console.error(
-												'Error checking keep_streams_open setting:',
-												err.message
-											);
-										} else if (!row) {
-											db.run(
-												`INSERT INTO app_settings (key, value) VALUES (?, ?)`,
-												['keep_streams_open', 'false'],
-												(insertErr) => {
-													if (insertErr) {
-														console.error(
-															'Error inserting default keep_streams_open setting:',
-															insertErr.message
-														);
-													} else {
-														console.log(
-															'Default setting "keep_streams_open" added.'
-														);
-													}
-												}
-											);
-										}
-									}
-								);
-								db.get(
-									`SELECT value FROM app_settings WHERE key = 'ollamaHost'`,
-									(err, row: AppSetting | undefined) => {
-										if (err) {
-											console.error(
-												'Error checking ollamaHost setting:',
-												err.message
-											);
-										} else if (!row) {
-											db.run(
-												`INSERT INTO app_settings (key, value) VALUES (?, ?)`,
-												['ollamaHost', '127.0.0.1:11434'],
-												(insertErr) => {
-													if (insertErr) {
-														console.error(
-															'Error inserting default ollamaHost setting:',
-															insertErr.message
-														);
-													} else {
-														console.log('Default setting "ollamaHost" added.');
-													}
-												}
-											);
-										}
-									}
-								);
-								db.get(
-									`SELECT value FROM app_settings WHERE key = 'ollamaModel'`,
-									(err, row: AppSetting | undefined) => {
-										if (err) {
-											console.error(
-												'Error checking ollamaModel setting:',
-												err.message
-											);
-										} else if (!row) {
-											db.run(
-												`INSERT INTO app_settings (key, value) VALUES (?, ?)`,
-												['ollamaModel', 'gemma3:4b'],
-												(insertErr) => {
-													if (insertErr) {
-														console.error(
-															'Error inserting default ollamaModel setting:',
-															insertErr.message
-														);
-													} else {
-														console.log('Default setting "ollamaModel" added.');
-													}
-												}
-											);
-										}
-									}
-								);
-							}
-						}
-					);
-				}
-			}
+export const db = new Database('./camview.db');
+
+console.log('Connected to the SQLite database.');
+
+db.exec(`
+    CREATE TABLE IF NOT EXISTS cameras (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        rtspUrl TEXT NOT NULL,
+        onvifUrl TEXT,
+        username TEXT,
+        password TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    );
+`);
+
+console.log('Tables created or already exist.');
+
+// Initialize default settings if they don't exist
+const initializeSetting = (key: string, defaultValue: string) => {
+	const setting = db
+		.prepare(`SELECT value FROM app_settings WHERE key = ?`)
+		.get(key) as AppSetting | undefined;
+	if (!setting) {
+		db.prepare(`INSERT INTO app_settings (key, value) VALUES (?, ?)`).run(
+			key,
+			defaultValue
 		);
+		console.log(`Default setting "${key}" added.`);
 	}
-});
+};
+
+initializeSetting('keep_streams_open', 'false');
+initializeSetting('ollamaHost', '127.0.0.1:11434');
+initializeSetting('ollamaModel', 'gemma3:4b');
+
+connectToExistingCameras();
 
 export function getAppSetting(key: string): Promise<string | undefined> {
-	return new Promise((resolve, reject) => {
-		db.get(
-			`SELECT value FROM app_settings WHERE key = ?`,
-			[key],
-			(err, row: AppSetting | undefined) => {
-				if (err) {
-					reject(err);
-				} else {
-					resolve(row?.value);
-				}
-			}
-		);
-	});
+	return Promise.resolve(
+		(
+			db.prepare(`SELECT value FROM app_settings WHERE key = ?`).get(key) as
+				| AppSetting
+				| undefined
+		)?.value
+	);
 }
 
 export function setAppSetting(key: string, value: string): Promise<void> {
-	return new Promise((resolve, reject) => {
-		db.run(
-			`INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)`,
-			[key, value],
-			function (err) {
-				if (err) {
-					reject(err);
-				} else {
-					resolve();
-				}
-			}
-		);
-	});
+	db.prepare(
+		`INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)`
+	).run(key, value);
+	return Promise.resolve();
 }
 
 export async function connectToExistingCameras() {
 	console.log('Attempting to connect to existing cameras...');
-	db.all<CameraDbRow>(`SELECT * FROM cameras`, [], async (err, rows) => {
-		if (err) {
-			console.error(
-				'Error fetching cameras for initial connection:',
-				err.message
-			);
-			return;
-		}
+	try {
+		const rows = db
+			.prepare<CameraDbRow[]>(`SELECT * FROM cameras`)
+			.all() as CameraDbRow[];
 		for (const camera of rows) {
 			try {
 				const host = new URL(camera.onvifUrl).hostname;
@@ -187,5 +87,10 @@ export async function connectToExistingCameras() {
 			}
 		}
 		console.log('Finished attempting to connect to existing cameras.');
-	});
+	} catch (err: any) {
+		console.error(
+			'Error fetching cameras for initial connection:',
+			err.message
+		);
+	}
 }

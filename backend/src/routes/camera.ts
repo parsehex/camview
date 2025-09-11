@@ -1,5 +1,4 @@
 import express, { Request, Response } from 'express';
-import * as sqlite3 from 'sqlite3';
 import onvif from 'node-onvif';
 import {
 	CameraDbRow,
@@ -45,23 +44,20 @@ router.post(
 
 			const onvifUrl = device.services.ptz?.xaddr;
 
-			db.run(
-				`INSERT INTO cameras (name, rtspUrl, onvifUrl, username, password) VALUES (?, ?, ?, ?, ?)`,
-				[name, discoveredRtspUrl, onvifUrl, username, password],
-				function (this: sqlite3.RunResult, dbErr: Error | null) {
-					if (dbErr) {
-						return res.status(500).json({ error: dbErr.message });
-					}
-					res.status(201).json({
-						id: this.lastID,
-						name,
-						rtspUrl: discoveredRtspUrl,
-						onvifUrl,
-						username,
-						password,
-					});
-				}
-			);
+			const result = db
+				.prepare(
+					`INSERT INTO cameras (name, rtspUrl, onvifUrl, username, password) VALUES (?, ?, ?, ?, ?)`
+				)
+				.run(name, discoveredRtspUrl, onvifUrl, username, password);
+
+			res.status(201).json({
+				id: result.lastInsertRowid,
+				name,
+				rtspUrl: discoveredRtspUrl,
+				onvifUrl,
+				username,
+				password,
+			});
 		} catch (error: any) {
 			console.error('Error adding camera:', error);
 			return res.status(500).json({
@@ -73,7 +69,7 @@ router.post(
 
 // Update a camera
 router.put(
-	'/api/cameras:id',
+	'/api/cameras/:id',
 	(
 		req: Request<{ id: string }, {}, CameraUpdateRequestBody>,
 		res: Response
@@ -85,63 +81,60 @@ router.put(
 			return res.status(400).json({ error: 'Name and RTSP URL are required.' });
 		}
 
-		db.run(
-			`UPDATE cameras SET name = ?, rtspUrl = ?, onvifUrl = ?, username = ?, password = ? WHERE id = ?`,
-			[name, rtspUrl, onvifUrl, username, password, id],
-			function (this: sqlite3.RunResult, err: Error | null) {
-				if (err) {
-					return res.status(500).json({ error: err.message });
-				}
-				if (this.changes === 0) {
-					return res.status(404).json({ error: 'Camera not found.' });
-				}
-				res.json({
-					message: `Camera ${id} updated successfully.`,
-					id,
-					name,
-					rtspUrl,
-					onvifUrl,
-					username,
-					password,
-				});
+		try {
+			const result = db
+				.prepare(
+					`UPDATE cameras SET name = ?, rtspUrl = ?, onvifUrl = ?, username = ?, password = ? WHERE id = ?`
+				)
+				.run(name, rtspUrl, onvifUrl, username, password, id);
+
+			if (result.changes === 0) {
+				return res.status(404).json({ error: 'Camera not found.' });
 			}
-		);
+			res.json({
+				message: `Camera ${id} updated successfully.`,
+				id,
+				name,
+				rtspUrl,
+				onvifUrl,
+				username,
+				password,
+			});
+		} catch (err: any) {
+			console.error('Error updating camera:', err);
+			return res.status(500).json({ error: err.message });
+		}
 	}
 );
 
 // Get all cameras
 router.get('/api/cameras', (req: Request, res: Response) => {
-	db.all<CameraDbRow[]>(
-		`SELECT * FROM cameras`,
-		[],
-		(err: Error | null, rows: CameraDbRow[][]) => {
-			if (err) {
-				return res.status(500).json({ error: err.message });
-			}
-			res.json(rows);
-		}
-	);
+	try {
+		const rows = db.prepare<CameraDbRow[]>(`SELECT * FROM cameras`).all();
+		res.json(rows);
+	} catch (err: any) {
+		console.error('Error fetching cameras:', err);
+		res.status(500).json({ error: err.message });
+	}
 });
 
 // Delete a camera
 router.delete(
-	'/api/cameras:id',
+	'/api/cameras/:id',
 	(req: Request<{ id: string }>, res: Response) => {
 		const { id } = req.params;
 
-		db.run(
-			`DELETE FROM cameras WHERE id = ?`,
-			id,
-			function (this: sqlite3.RunResult, err: Error | null) {
-				if (err) {
-					return res.status(500).json({ error: err.message });
-				}
-				if (this.changes === 0) {
-					return res.status(404).json({ error: 'Camera not found.' });
-				}
-				res.json({ message: `Camera ${id} deleted successfully.` });
+		try {
+			const result = db.prepare(`DELETE FROM cameras WHERE id = ?`).run(id);
+
+			if (result.changes === 0) {
+				return res.status(404).json({ error: 'Camera not found.' });
 			}
-		);
+			res.json({ message: `Camera ${id} deleted successfully.` });
+		} catch (err: any) {
+			console.error('Error deleting camera:', err);
+			return res.status(500).json({ error: err.message });
+		}
 	}
 );
 
@@ -179,77 +172,70 @@ router.post(
 	) => {
 		const cameraId = req.params.id;
 		// Fetch camera details from the database
-		db.get<CameraDbRow>(
-			`SELECT * FROM cameras WHERE id = ?`,
-			[cameraId],
-			async (err: Error | null, camera: CameraDbRow | undefined) => {
-				// Added async here
-				if (err) {
-					console.error('Error fetching camera details:', err);
-					return res.status(500).json({ error: err.message });
-				}
-				if (!camera) {
-					return res.status(404).json({ error: 'Camera not found.' });
-				}
+		try {
+			const camera = db
+				.prepare(`SELECT * FROM cameras WHERE id = ?`)
+				.get(cameraId) as CameraDbRow | undefined;
 
-				const { name, onvifUrl, username, password } = camera;
-				const { command, speed } = req.body;
-
-				if (!onvifUrl) {
-					return res.status(400).json({
-						error: 'ONVIF URL is required for control.',
-					});
-				}
-
-				try {
-					const device = await getDevice(
-						onvifUrl,
-						username,
-						password,
-						'camera-' + name
-					);
-
-					let ptzSpeed: { x?: number; y?: number; z?: number };
-					switch (command) {
-						case 'moveUp':
-							ptzSpeed = { y: speed };
-							break;
-						case 'moveDown':
-							ptzSpeed = { y: -speed };
-							break;
-						case 'moveLeft':
-							ptzSpeed = { x: -speed };
-							break;
-						case 'moveRight':
-							ptzSpeed = { x: speed };
-							break;
-						case 'zoomIn':
-							ptzSpeed = { z: speed };
-							break;
-						case 'zoomOut':
-							ptzSpeed = { z: -speed };
-							break;
-						case 'stop':
-							await device.ptzStop();
-							return res.json({
-								message: `PTZ stop command sent to camera ${cameraId}.`,
-							});
-						default:
-							return res.status(400).json({ error: 'Invalid PTZ command.' });
-					}
-
-					await device.ptzMove({ speed: ptzSpeed });
-					res.json({
-						message: `PTZ ${command} command sent to camera ${cameraId}.`,
-					});
-				} catch (error: any) {
-					console.error('Error sending PTZ command:', error);
-					return res.status(500).json({
-						error: `Failed to send PTZ command: ${error.message}`,
-					});
-				}
+			if (!camera) {
+				return res.status(404).json({ error: 'Camera not found.' });
 			}
-		);
+
+			const { name, onvifUrl, username, password } = camera;
+			const { command, speed } = req.body;
+
+			if (!onvifUrl) {
+				return res.status(400).json({
+					error: 'ONVIF URL is required for control.',
+				});
+			}
+
+			const device = await getDevice(
+				onvifUrl,
+				username,
+				password,
+				'camera-' + name
+			);
+
+			let ptzSpeed: { x?: number; y?: number; z?: number };
+			switch (command) {
+				case 'moveUp':
+					ptzSpeed = { y: speed };
+					break;
+				case 'moveDown':
+					ptzSpeed = { y: -speed };
+					break;
+				case 'moveLeft':
+					ptzSpeed = { x: -speed };
+					break;
+				case 'moveRight':
+					ptzSpeed = { x: speed };
+					break;
+				case 'zoomIn':
+					ptzSpeed = { z: speed };
+					break;
+				case 'zoomOut':
+					ptzSpeed = { z: -speed };
+					break;
+				case 'stop':
+					await device.ptzStop();
+					return res.json({
+						message: `PTZ stop command sent to camera ${cameraId}.`,
+					});
+				default:
+					return res.status(400).json({ error: 'Invalid PTZ command.' });
+			}
+
+			await device.ptzMove({ speed: ptzSpeed });
+			res.json({
+				message: `PTZ ${command} command sent to camera ${cameraId}.`,
+			});
+		} catch (error: any) {
+			console.error('Error sending PTZ command:', error);
+			return res.status(500).json({
+				error: `Failed to send PTZ command: ${error.message}`,
+			});
+		}
 	}
 );
 
