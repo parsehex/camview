@@ -33,6 +33,7 @@ router.post('/query', async (req, res) => {
 			prompt: prompt,
 			images: [imageBase64],
 			stream: true,
+			options: { temperature: 0, num_predict: 512 },
 		});
 
 		res.writeHead(200, {
@@ -40,8 +41,16 @@ router.post('/query', async (req, res) => {
 			'Transfer-Encoding': 'chunked',
 		});
 
+		let lastPart: any;
 		for await (const part of response) {
 			res.write(part.response);
+			lastPart = part;
+		}
+		if (lastPart) {
+			console.log(
+				'Total tokens:',
+				lastPart.eval_count + lastPart.prompt_eval_count
+			);
 		}
 		res.end();
 	} catch (error: any) {
