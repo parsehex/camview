@@ -47,6 +47,7 @@ const toggleStream = () => {
 const showOllamaControls = ref(false);
 const ollamaPrompt = ref(localStorage.getItem(`ollamaPrompt-${props.cameraId}`) || '');
 const ollamaResponse = ref('');
+const ollamaImage = ref(''); // New ref for the image
 const isQueryingOllama = ref(false);
 
 const toggleOllamaControls = () => {
@@ -65,6 +66,7 @@ const queryOllama = async () => {
 
 	isQueryingOllama.value = true;
 	ollamaResponse.value = ''; // Clear previous response
+	ollamaImage.value = ''; // Clear previous image
 
 	try {
 		const response = await fetch('http://localhost:3000/api/ollama/query', {
@@ -90,10 +92,24 @@ const queryOllama = async () => {
 
 		const decoder = new TextDecoder();
 		let result = '';
+		let isFirstLine = true;
 		while (true) {
 			const { done, value } = await reader.read();
 			if (done) break;
-			result += decoder.decode(value, { stream: true });
+			const chunk = decoder.decode(value, { stream: true });
+
+			if (isFirstLine) {
+				const lines = (result + chunk).split('\n');
+				if (lines.length > 1) {
+					ollamaImage.value = lines[0];
+					result = lines.slice(1).join('\n');
+					isFirstLine = false;
+				} else {
+					result += chunk;
+				}
+			} else {
+				result += chunk;
+			}
 			ollamaResponse.value = result; // Update in real-time
 		}
 	} catch (error: any) {
@@ -195,8 +211,9 @@ onBeforeUnmount(() => {
 					rows="4"></textarea>
 				<button @click="queryOllama" :disabled="isQueryingOllama"> {{ isQueryingOllama ? 'Querying...' : 'Query Ollama'
 				}} </button>
-				<div v-if="ollamaResponse" class="ollama-response">
+				<div v-if="ollamaResponse || ollamaImage" class="ollama-response">
 					<h4>Response:</h4>
+					<img v-if="ollamaImage" :src="ollamaImage" alt="Query Image" class="ollama-query-image" />
 					<p>{{ ollamaResponse }}</p>
 				</div>
 			</div>
@@ -365,6 +382,14 @@ video {
 	background-color: #f0f8ff;
 	white-space: pre-wrap;
 	/* Preserve whitespace and line breaks */
+}
+
+.ollama-query-image {
+	max-width: 100%;
+	height: auto;
+	margin-bottom: 10px;
+	border-radius: 4px;
+	border: 1px solid #ddd;
 }
 
 .ollama-response h4 {

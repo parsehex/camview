@@ -26,19 +26,20 @@ router.post('/query', async (req, res) => {
 
 		const imageBase64 = await getFrameAsBase64(cameraId);
 
-		const ollamaInstance = new Ollama({ host: ollamaHost });
+		res.writeHead(200, {
+			'Content-Type': 'text/plain',
+			'Transfer-Encoding': 'chunked',
+		});
 
+		res.write(`data:image/jpeg;base64,${imageBase64}\n`); // Send image as the first line
+
+		const ollamaInstance = new Ollama({ host: ollamaHost });
 		const response = await ollamaInstance.generate({
 			model: ollamaModel,
 			prompt: prompt,
 			images: [imageBase64],
 			stream: true,
-			options: { temperature: 0, num_predict: 512 },
-		});
-
-		res.writeHead(200, {
-			'Content-Type': 'text/plain',
-			'Transfer-Encoding': 'chunked',
+			options: { temperature: 0.05, num_predict: 512 },
 		});
 
 		let lastPart: any;

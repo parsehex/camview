@@ -12,6 +12,7 @@ const appSettings = ref<AppSettings>({
 	ollamaHost: '127.0.0.1:11434',
 	ollamaModel: 'gemma3:4b',
 });
+// TODO load available ollama models
 
 const fetchAppSettings = async () => {
 	try {
