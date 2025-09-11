@@ -2,9 +2,6 @@
 import { ref, onMounted } from 'vue';
 import CameraStream from '../components/CameraStream.vue';
 
-interface AppSettings {
-	keep_streams_open: boolean;
-}
 
 interface Camera {
 	id?: number;
@@ -19,7 +16,6 @@ const cameras = ref<Camera[]>([]);
 const newCamera = ref<Camera>({ name: '', rtspUrl: '', onvifUrl: '', username: '', password: '' });
 const editingCamera = ref<Camera | null>(null); // To hold the camera being edited
 const discoveredDevices = ref<any[]>([]);
-const appSettings = ref<AppSettings>({ keep_streams_open: false });
 
 const discoverOnvifDevices = async () => {
 	try {
@@ -104,33 +100,8 @@ const saveCamera = async () => {
 	}
 };
 
-const fetchAppSettings = async () => {
-	try {
-		const response = await fetch('http://localhost:3000/api/settings/keep-streams-open');
-		appSettings.value = await response.json();
-	} catch (error) {
-		console.error('Error fetching app settings:', error);
-	}
-};
-
-const updateKeepStreamsOpenSetting = async () => {
-	try {
-		await fetch('http://localhost:3000/api/settings/keep-streams-open', {
-			method: 'PUT',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({ value: appSettings.value.keep_streams_open }),
-		});
-		console.log('Keep streams open setting updated:', appSettings.value.keep_streams_open);
-	} catch (error) {
-		console.error('Error updating keep_streams_open setting:', error);
-	}
-};
-
 onMounted(async () => {
 	await fetchCameras();
-	await fetchAppSettings();
 });
 
 const deleteCamera = async (id: number | undefined) => {
@@ -150,15 +121,6 @@ const deleteCamera = async (id: number | undefined) => {
 <template>
 	<div class="camera-view">
 		<h1>Camera Management</h1>
-		<div class="app-settings" v-if="false">
-			<h2>Application Settings</h2>
-			<div>
-				<!-- doesn't work especially well -->
-				<input type="checkbox" id="keepStreamsOpen" v-model="appSettings.keep_streams_open"
-					@change="updateKeepStreamsOpenSetting" />
-				<label for="keepStreamsOpen">Keep streams open (improves startup performance, uses more resources)</label>
-			</div>
-		</div>
 		<ul v-if="cameras.length" class="camera-list">
 			<li v-for="camera in cameras" :key="camera.id">
 				<div v-if="editingCamera && editingCamera.id === camera.id" class="edit-form">
@@ -227,30 +189,6 @@ const deleteCamera = async (id: number | undefined) => {
 	</div>
 </template>
 <style scoped>
-.app-settings {
-	margin-bottom: 30px;
-	padding: 15px;
-	border: 1px solid #ccc;
-	border-radius: 8px;
-	background-color: #f9f9f9;
-}
-
-.app-settings h2 {
-	color: #333;
-	margin-bottom: 15px;
-}
-
-.app-settings div {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-}
-
-.app-settings input[type="checkbox"] {
-	width: auto;
-	margin-right: 5px;
-}
-
 .form-and-discovery-container {
 	display: flex;
 	gap: 30px;

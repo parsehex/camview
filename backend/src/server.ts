@@ -4,6 +4,7 @@ import { WebSocket } from 'ws';
 import cameraRoutes from './routes/camera';
 import { cameraStreamWs } from './routes/stream-ws';
 import settingsRoutes from './routes/settings';
+import ollamaRoutes from './routes/ollama';
 
 // Extend the Express Application type to include the 'ws' property from express-ws
 interface WsApplication extends Application {
@@ -45,6 +46,7 @@ app.get('/', (req: Request, res: Response) => {
 
 app.use(cameraRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/ollama', ollamaRoutes);
 app.ws('/api/camera/:id/stream', cameraStreamWs);
 
 app.listen(port, () => {

@@ -5,4 +5,6 @@ export interface AppSetting {
 
 export interface AppSettings {
 	keep_streams_open: boolean;
+	ollamaHost?: string;
+	ollamaModel?: string;
 }

@@ -250,3 +250,75 @@ export const cameraStreamWs = async (ws: WebSocket, req: Request) => {
 		}
 	);
 };
+
+export async function getFrameAsBase64(cameraId: string): Promise<string> {
+	return new Promise(async (resolve, reject) => {
+		db.get<CameraDbRow>(
+			`SELECT * FROM cameras WHERE id = ?`,
+			[cameraId],
+			async (err: Error | null, camera: CameraDbRow | undefined) => {
+				if (err) {
+					return reject(new Error('Failed to fetch camera details.'));
+				}
+				if (!camera) {
+					return reject(new Error('Camera not found.'));
+				}
+
+				const { rtspUrl, username, password } = camera;
+
+				if (!rtspUrl) {
+					return reject(new Error('RTSP URL not available for this camera.'));
+				}
+
+				let rtspStreamUrl = rtspUrl;
+				if (username && password) {
+					const url = new URL(rtspUrl);
+					url.username = username;
+					url.password = password;
+					rtspStreamUrl = url.toString();
+				}
+
+				console.log(`Attempting to capture frame from: ${rtspStreamUrl}`);
+
+				const buffers: Buffer[] = [];
+				const ffmpegCommand = ffmpeg(rtspStreamUrl)
+					.inputOptions(['-rtsp_transport', 'tcp'])
+					.outputOptions([
+						'-vframes',
+						'1', // Capture only one frame
+						'-f',
+						'image2', // Output format as image
+						'-c:v',
+						'mjpeg', // Output codec
+						'-q:v',
+						'2', // Quality (1-31, 1 is best)
+						'-s',
+						'1280x720', // Resolution
+					])
+					.pipe() as Readable;
+
+				ffmpegCommand.on('data', (chunk) => {
+					buffers.push(chunk);
+				});
+
+				ffmpegCommand.on('end', () => {
+					const imageBuffer = Buffer.concat(buffers);
+					const base64Image = imageBuffer.toString('base64');
+					resolve(base64Image);
+				});
+
+				ffmpegCommand.on(
+					'error',
+					(ffmpegErr: any, stdout: any, stderr: any) => {
+						console.error('FFmpeg frame capture error:', ffmpegErr.message);
+						console.error('FFmpeg stdout:', stdout);
+						console.error('FFmpeg stderr:', stderr);
+						reject(
+							new Error(`FFmpeg frame capture failed: ${ffmpegErr.message}`)
+						);
+					}
+				);
+			}
+		);
+	});
+}

@@ -3,32 +3,42 @@ import { getAppSetting, setAppSetting } from '../utils/db';
 
 const router = Router();
 
-// GET /api/settings/keep-streams-open
-router.get('/keep-streams-open', async (req: Request, res: Response) => {
+// GET /api/settings
+router.get('/', async (req: Request, res: Response) => {
 	try {
-		const value = await getAppSetting('keep_streams_open');
-		res.json({ keep_streams_open: value === 'true' });
+		const keepStreamsOpen = await getAppSetting('keep_streams_open');
+		const ollamaHost = await getAppSetting('ollamaHost');
+		const ollamaModel = await getAppSetting('ollamaModel');
+
+		res.json({
+			keep_streams_open: keepStreamsOpen,
+			ollamaHost: ollamaHost,
+			ollamaModel: ollamaModel,
+		});
 	} catch (error: any) {
-		console.error('Error getting keep_streams_open setting:', error);
+		console.error('Error getting all app settings:', error);
 		res.status(500).json({ error: error.message });
 	}
 });
 
-// PUT /api/settings/keep-streams-open
-router.put('/keep-streams-open', async (req: Request, res: Response) => {
+// PUT /api/settings/:key
+router.put('/:key', async (req: Request, res: Response) => {
+	const { key } = req.params;
 	const { value } = req.body;
-	if (typeof value !== 'boolean') {
-		return res.status(400).json({ error: 'Value must be a boolean.' });
+
+	if (value === undefined) {
+		return res.status(400).json({ error: 'Value is required.' });
 	}
 
 	try {
-		await setAppSetting('keep_streams_open', value.toString());
+		await setAppSetting(key, value.toString());
 		res.json({
-			message: 'Setting updated successfully.',
-			keep_streams_open: value,
+			message: `Setting "${key}" updated successfully.`,
+			key: key,
+			value: value,
 		});
 	} catch (error: any) {
-		console.error('Error setting keep_streams_open setting:', error);
+		console.error(`Error setting ${key} setting:`, error);
 		res.status(500).json({ error: error.message });
 	}
 });

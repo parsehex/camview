@@ -65,6 +65,58 @@ export const db = new sqlite3.Database('./camview.db', (err: Error | null) => {
 										}
 									}
 								);
+								db.get(
+									`SELECT value FROM app_settings WHERE key = 'ollamaHost'`,
+									(err, row: AppSetting | undefined) => {
+										if (err) {
+											console.error(
+												'Error checking ollamaHost setting:',
+												err.message
+											);
+										} else if (!row) {
+											db.run(
+												`INSERT INTO app_settings (key, value) VALUES (?, ?)`,
+												['ollamaHost', '127.0.0.1:11434'],
+												(insertErr) => {
+													if (insertErr) {
+														console.error(
+															'Error inserting default ollamaHost setting:',
+															insertErr.message
+														);
+													} else {
+														console.log('Default setting "ollamaHost" added.');
+													}
+												}
+											);
+										}
+									}
+								);
+								db.get(
+									`SELECT value FROM app_settings WHERE key = 'ollamaModel'`,
+									(err, row: AppSetting | undefined) => {
+										if (err) {
+											console.error(
+												'Error checking ollamaModel setting:',
+												err.message
+											);
+										} else if (!row) {
+											db.run(
+												`INSERT INTO app_settings (key, value) VALUES (?, ?)`,
+												['ollamaModel', 'gemma3:4b'],
+												(insertErr) => {
+													if (insertErr) {
+														console.error(
+															'Error inserting default ollamaModel setting:',
+															insertErr.message
+														);
+													} else {
+														console.log('Default setting "ollamaModel" added.');
+													}
+												}
+											);
+										}
+									}
+								);
 							}
 						}
 					);

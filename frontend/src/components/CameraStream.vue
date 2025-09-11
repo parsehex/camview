@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import { Play, Square, RotateCw } from 'lucide-vue-next';
+import { Play, Square, RotateCw, MessageSquareText } from 'lucide-vue-next';
 import mpegts from 'mpegts.js';
 import PtzControls from './PtzControls.vue';
 import { delay } from '@/utils';
@@ -41,6 +41,66 @@ const toggleStream = () => {
 		stopStream();
 	} else {
 		startStream();
+	}
+};
+
+const showOllamaControls = ref(false);
+const ollamaPrompt = ref(localStorage.getItem(`ollamaPrompt-${props.cameraId}`) || '');
+const ollamaResponse = ref('');
+const isQueryingOllama = ref(false);
+
+const toggleOllamaControls = () => {
+	showOllamaControls.value = !showOllamaControls.value;
+};
+
+const saveOllamaPrompt = () => {
+	localStorage.setItem(`ollamaPrompt-${props.cameraId}`, ollamaPrompt.value);
+};
+
+const queryOllama = async () => {
+	if (!ollamaPrompt.value) {
+		alert('Please enter a prompt.');
+		return;
+	}
+
+	isQueryingOllama.value = true;
+	ollamaResponse.value = ''; // Clear previous response
+
+	try {
+		const response = await fetch('http://localhost:3000/api/ollama/query', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				prompt: ollamaPrompt.value,
+				cameraId: props.cameraId,
+			}),
+		});
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			throw new Error(`Backend error: ${errorText}`);
+		}
+
+		const reader = response.body?.getReader();
+		if (!reader) {
+			throw new Error('Failed to get response reader.');
+		}
+
+		const decoder = new TextDecoder();
+		let result = '';
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			result += decoder.decode(value, { stream: true });
+			ollamaResponse.value = result; // Update in real-time
+		}
+	} catch (error: any) {
+		console.error('Error querying Ollama:', error);
+		ollamaResponse.value = `Error: ${error.message}`;
+	} finally {
+		isQueryingOllama.value = false;
 	}
 };
 
@@ -124,6 +184,20 @@ onBeforeUnmount(() => {
 						<Square v-if="isStreaming" />
 						<Play v-else />
 					</button>
+					<button @click="toggleOllamaControls" class="ollama-toggle-button">
+						<MessageSquareText />
+					</button>
+				</div>
+			</div>
+			<div v-if="showOllamaControls" class="ollama-controls">
+				<h3>Ollama AI Query</h3>
+				<textarea v-model="ollamaPrompt" @input="saveOllamaPrompt" placeholder="Enter your prompt for Ollama..."
+					rows="4"></textarea>
+				<button @click="queryOllama" :disabled="isQueryingOllama"> {{ isQueryingOllama ? 'Querying...' : 'Query Ollama'
+				}} </button>
+				<div v-if="ollamaResponse" class="ollama-response">
+					<h4>Response:</h4>
+					<p>{{ ollamaResponse }}</p>
 				</div>
 			</div>
 		</div>
@@ -131,7 +205,56 @@ onBeforeUnmount(() => {
 	</div>
 </template>
 <style scoped>
-.stream-toggle-button {
+.camera-stream-container {
+	display: flex;
+	gap: 20px;
+	margin-top: 20px;
+	flex-wrap: wrap;
+	/* Allow wrapping for smaller screens */
+}
+
+.camera-stream {
+	flex-grow: 1;
+	border: 1px solid #eee;
+	padding: 10px;
+	border-radius: 8px;
+	background-color: #f0f0f0;
+	display: flex;
+	flex-direction: column;
+	/* Stack video and ollama controls vertically */
+	align-items: center;
+	justify-content: center;
+	gap: 15px;
+	/* Space between video and ollama controls */
+}
+
+.video-and-controls {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	/* Ensure it takes full width */
+	justify-content: center;
+}
+
+video {
+	width: 100%;
+	height: 360px;
+	max-width: 640px;
+	display: block;
+	background-color: black;
+	/* Placeholder for video feed */
+}
+
+.stream-buttons {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.stream-toggle-button,
+.restart-stream-button,
+.ollama-toggle-button {
 	background-color: #28a745;
 	color: white;
 	border: none;
@@ -144,6 +267,124 @@ onBeforeUnmount(() => {
 	cursor: pointer;
 	transition: background-color 0.3s ease;
 	padding: 0;
+}
+
+.stream-toggle-button:hover,
+.restart-stream-button:hover,
+.ollama-toggle-button:hover {
+	background-color: #218838;
+}
+
+.stream-toggle-button .lucide,
+.restart-stream-button .lucide,
+.ollama-toggle-button .lucide {
+	stroke: white;
+}
+
+.stream-toggle-button.is-streaming {
+	background-color: #dc3545;
+}
+
+.stream-toggle-button.is-streaming:hover {
+	background-color: #c82333;
+}
+
+.restart-stream-button {
+	background-color: #ffc107;
+}
+
+.restart-stream-button:hover {
+	background-color: #e0a800;
+}
+
+.ollama-toggle-button {
+	background-color: #007bff;
+	/* Blue for Ollama button */
+}
+
+.ollama-toggle-button:hover {
+	background-color: #0056b3;
+}
+
+.ollama-controls {
+	width: 100%;
+	max-width: 640px;
+	/* Match video width */
+	padding: 15px;
+	margin: auto;
+	border: 1px solid #ccc;
+	border-radius: 8px;
+	background-color: #fff;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.ollama-controls h3 {
+	margin-top: 0;
+	color: #333;
+}
+
+.ollama-controls textarea {
+	width: calc(100% - 20px);
+	/* Account for padding */
+	padding: 10px;
+	border: 1px solid #ddd;
+	border-radius: 5px;
+	font-size: 1rem;
+	resize: vertical;
+	min-height: 80px;
+}
+
+.ollama-controls button {
+	align-self: flex-start;
+	/* Align button to the left */
+	padding: 10px 20px;
+	background-color: #28a745;
+	color: white;
+	border: none;
+	border-radius: 5px;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+}
+
+.ollama-controls button:hover:not(:disabled) {
+	background-color: #218838;
+}
+
+.ollama-controls button:disabled {
+	background-color: #cccccc;
+	cursor: not-allowed;
+}
+
+.ollama-response {
+	margin-top: 15px;
+	padding: 10px;
+	border: 1px solid #eee;
+	border-radius: 5px;
+	background-color: #f0f8ff;
+	white-space: pre-wrap;
+	/* Preserve whitespace and line breaks */
+}
+
+.ollama-response h4 {
+	margin-top: 0;
+	color: #555;
+}
+
+/* General button styles (moved to the end or a common file if many components use it) */
+button {
+	padding: 8px 12px;
+	background-color: #007bff;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	margin-right: 10px;
+}
+
+button:hover {
+	background-color: #0056b3;
 }
 
 .stream-toggle-button:hover {
