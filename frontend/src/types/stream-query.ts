@@ -4,6 +4,7 @@ export interface StreamQuery {
 	prompt: string;
 	responseType: 'string' | 'array';
 	think: boolean;
+	frameCount: number;
 	cameraId: number;
 }
 
@@ -12,7 +13,7 @@ export interface QueryExecutionResult {
 	value: string | string[];
 	rawResponse: string;
 	timestamp: number;
-	image?: string;
+	images?: string[];
 }
 
 export interface QueryExecutionParams {
@@ -20,6 +21,7 @@ export interface QueryExecutionParams {
 	cameraId: number;
 	responseType: 'string' | 'array';
 	think: boolean;
+	frameCount: number;
 }
 
 // Utility functions for managing queries in localStorage

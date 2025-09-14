@@ -20,6 +20,7 @@ const editName = ref('');
 const editPrompt = ref('');
 const editResponseType = ref<'string' | 'array'>('string');
 const editThink = ref(false);
+const editFrameCount = ref(1);
 
 // Load queries on mount
 onMounted(() => {
@@ -37,6 +38,7 @@ const startNewQuery = () => {
 	editPrompt.value = '';
 	editResponseType.value = 'string';
 	editThink.value = false;
+	editFrameCount.value = 1;
 };
 
 const editExistingQuery = (query: StreamQuery) => {
@@ -46,6 +48,7 @@ const editExistingQuery = (query: StreamQuery) => {
 	editPrompt.value = query.prompt;
 	editResponseType.value = query.responseType;
 	editThink.value = query.think;
+	editFrameCount.value = query.frameCount;
 };
 
 const saveQuery = () => {
@@ -58,7 +61,8 @@ const saveQuery = () => {
 		name: editName.value.trim(),
 		prompt: editPrompt.value.trim(),
 		responseType: editResponseType.value,
-		think: editThink.value
+		think: editThink.value,
+		frameCount: editFrameCount.value
 	};
 
 	if (selectedQuery.value) {
@@ -99,7 +103,8 @@ const runQuery = async (query: StreamQuery) => {
 				prompt: query.prompt,
 				cameraId: props.cameraId,
 				responseType: query.responseType,
-				think: query.think
+				think: query.think,
+				frameCount: query.frameCount
 			}),
 		});
 
@@ -116,7 +121,7 @@ const runQuery = async (query: StreamQuery) => {
 		const decoder = new TextDecoder();
 		let result = '';
 		let isFirstLine = true;
-		let imageData = '';
+		let imageData: string[] = [];
 
 		while (true) {
 			const { done, value } = await reader.read();
@@ -125,10 +130,18 @@ const runQuery = async (query: StreamQuery) => {
 
 			if (isFirstLine) {
 				const lines = (result + chunk).split('\n');
-				if (lines.length > 1) {
-					imageData = lines[0];
-					result = lines.slice(1).join('\n');
+				// Find the first non-image line (lines that don't start with 'data:image/')
+				const firstNonImageIndex = lines.findIndex(line => !line.startsWith('data:image/'));
+
+				if (firstNonImageIndex > 0) {
+					// Collect all image lines
+					imageData = lines.slice(0, firstNonImageIndex).filter(line => line.startsWith('data:image/'));
+					result = lines.slice(firstNonImageIndex).join('\n');
 					isFirstLine = false;
+				} else if (firstNonImageIndex === -1 && lines.length > 0) {
+					// All lines are images, continue collecting
+					imageData = lines.filter(line => line.startsWith('data:image/'));
+					result = '';
 				} else {
 					result += chunk;
 				}
@@ -145,7 +158,7 @@ const runQuery = async (query: StreamQuery) => {
 						value: parsed.value,
 						rawResponse: result,
 						timestamp: Date.now(),
-						image: imageData
+						images: imageData
 					};
 				}
 			} catch (e) {
@@ -161,7 +174,7 @@ const runQuery = async (query: StreamQuery) => {
 				value: parsed.value,
 				rawResponse: result,
 				timestamp: Date.now(),
-				image: imageData
+				images: imageData
 			};
 		} catch (e) {
 			// Fallback to raw response if not JSON
@@ -170,7 +183,7 @@ const runQuery = async (query: StreamQuery) => {
 				value: result,
 				rawResponse: result,
 				timestamp: Date.now(),
-				image: imageData
+				images: imageData
 			};
 		}
 	} catch (error: any) {
@@ -180,7 +193,7 @@ const runQuery = async (query: StreamQuery) => {
 			value: `Error: ${error.message}`,
 			rawResponse: error.message,
 			timestamp: Date.now(),
-			image: undefined
+			images: undefined
 		};
 	} finally {
 		isQuerying.value = false;
@@ -247,6 +260,10 @@ const formatValue = (value: string | string[]): string => {
 				<label class="checkbox-label">
 					<input type="checkbox" v-model="editThink" /> Include reasoning (thoughts) </label>
 			</div>
+			<div class="form-group">
+				<label for="frame-count">Number of Frames:</label>
+				<input id="frame-count" v-model.number="editFrameCount" type="number" min="1" max="10" />
+			</div>
 			<div class="editor-actions">
 				<button @click="saveQuery" class="save-btn">Save</button>
 				<button @click="cancelEdit" class="cancel-btn">Cancel</button>
@@ -255,8 +272,12 @@ const formatValue = (value: string | string[]): string => {
 		<!-- Results Panel -->
 		<div v-if="showResults && executionResult" class="results-panel">
 			<h4>Query Results</h4>
-			<div v-if="executionResult.image" class="image-section">
-				<img :src="executionResult.image" alt="Queried Image" title="The queried image" class="query-image" />
+			<div v-if="executionResult.images && executionResult.images.length > 0" class="image-section">
+				<h5>Frames ({{ executionResult.images.length }}):</h5>
+				<div class="images-container">
+					<img v-for="(image, index) in executionResult.images" :key="index" :src="image"
+						:alt="`Queried Frame ${index + 1}`" :title="`Frame ${index + 1}`" class="query-image" />
+				</div>
 			</div>
 			<div v-if="executionResult.thoughts" class="thoughts-section">
 				<h5>Reasoning:</h5>
@@ -480,6 +501,18 @@ const formatValue = (value: string | string[]): string => {
 	height: auto;
 	border: 1px solid #dee2e6;
 	border-radius: 4px;
+}
+
+.images-container {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+}
+
+.images-container .query-image {
+	max-width: 30%;
+	flex: 0 0 30%;
 }
 
 .thoughts-section,

@@ -303,6 +303,7 @@ export async function getFrameAsBase64(
 			ffmpegCommand.on('end', () => {
 				const imageBuffer = Buffer.concat(buffers);
 				const base64Image = imageBuffer.toString('base64');
+				console.log('Got frame');
 				resolve(base64Image);
 			});
 
@@ -316,4 +317,32 @@ export async function getFrameAsBase64(
 			return reject(new Error('Failed to fetch camera details.'));
 		}
 	});
+}
+
+export async function getFramesAsBase64(
+	cameraId: string | number,
+	frameCount: number = 1,
+	delayMs: number = 1000
+): Promise<string[]> {
+	const frames: string[] = [];
+
+	for (let i = 0; i < frameCount; i++) {
+		try {
+			const frame = await getFrameAsBase64(cameraId);
+			frames.push(frame);
+
+			// Wait between frames if not the last frame
+			if (i < frameCount - 1) {
+				await new Promise((resolve) => setTimeout(resolve, delayMs));
+			}
+		} catch (error) {
+			console.error(`Error capturing frame ${i + 1}:`, error);
+			// Continue with available frames rather than failing completely
+			if (frames.length === 0) {
+				throw error; // Only throw if no frames were captured at all
+			}
+		}
+	}
+
+	return frames;
 }
