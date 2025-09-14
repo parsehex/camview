@@ -250,7 +250,9 @@ export const cameraStreamWs = async (ws: WebSocket, req: Request) => {
 	}
 };
 
-export async function getFrameAsBase64(cameraId: string): Promise<string> {
+export async function getFrameAsBase64(
+	cameraId: string | number
+): Promise<string> {
 	return new Promise(async (resolve, reject) => {
 		try {
 			const camera = db
