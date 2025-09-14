@@ -160,6 +160,7 @@ const startStream = () => {
 			mpegtsPlayer?.play();
 			isStreaming.value = true;
 
+			const streamStartTime = Date.now();
 			let firstFrameRendered = false;
 			mpegtsPlayer.on(mpegts.Events.MEDIA_INFO, (statisticsInfo) => {
 				if (!firstFrameRendered) {
