@@ -153,23 +153,28 @@ const startStream = () => {
 				isLive: true,
 				url: `ws://localhost:3000/api/camera/${props.cameraId}/stream`,
 			}, {
-				// Optional: Adjust buffer settings for lower latency
-				// liveBufferLatencyChasing: true,
-				// liveBufferLatencyMaxLatency: 0.5, // seconds
-				// liveBufferLatencyMinRemain: 0.1, // seconds
+				liveBufferLatencyChasing: true,
 			});
 			mpegtsPlayer.attachMediaElement(videoRef.value);
 			mpegtsPlayer.load();
 			mpegtsPlayer?.play();
 			isStreaming.value = true;
 
+			let firstFrameRendered = false;
+			mpegtsPlayer.on(mpegts.Events.MEDIA_INFO, (statisticsInfo) => {
+				if (!firstFrameRendered) {
+					const timeToFirstFrame = (Date.now() - streamStartTime) / 1000;
+					console.log(`[${Date.now()}] Time to first frame: ${timeToFirstFrame.toFixed(3)}s for camera ${props.cameraId}`);
+					firstFrameRendered = true;
+				}
+			});
 
 			mpegtsPlayer.on(mpegts.Events.ERROR, (errorType, errorDetail, errorInfo) => {
 				console.error('mpegts.js error:', errorType, errorDetail, errorInfo);
 				stopStream();
 			});
 
-			console.log('mpegts.js player initialized and attempting to play.');
+			console.log(`[${Date.now()}] mpegts.js player initialized and attempting to play for camera ${props.cameraId}.`);
 		} else {
 			console.error('Video element not found.');
 		}

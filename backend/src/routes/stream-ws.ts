@@ -15,6 +15,7 @@ interface StreamCacheEntry {
 	stream: Readable;
 	clients: Set<WebSocket>; // Use a Set to keep track of unique WebSocket clients
 	lastAccessed: number; // Timestamp for potential future cleanup
+	buffer: Buffer[];
 }
 
 const streamCache = new Map<string, StreamCacheEntry>();
@@ -52,7 +53,11 @@ export const cameraStreamWs = async (ws: WebSocket, req: Request) => {
 		streamEntry.clients.add(ws);
 		streamEntry.lastAccessed = Date.now();
 
-		// No new stream.on('data') listener here. The single listener below will handle broadcasting.
+		streamEntry.buffer.forEach((chunk) => {
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(chunk);
+			}
+		});
 
 		ws.on('close', () => {
 			console.log(`WebSocket connection closed for camera ${cameraId}.`);
@@ -195,11 +200,19 @@ export const cameraStreamWs = async (ws: WebSocket, req: Request) => {
 				stream,
 				clients: new Set([ws]),
 				lastAccessed: Date.now(),
+				buffer: [],
 			};
 			streamCache.set(cameraId, streamEntry);
 
 			// This is the SINGLE data listener for the FFmpeg stream
-			stream.on('data', (chunk) => {
+			stream.on('data', (chunk: Buffer) => {
+				if (streamEntry) {
+					streamEntry.buffer.push(chunk);
+					if (streamEntry.buffer.length > 500) {
+						streamEntry.buffer.shift();
+					}
+				}
+
 				streamEntry?.clients.forEach((clientWs) => {
 					if (clientWs.readyState === WebSocket.OPEN) {
 						clientWs.send(chunk);
