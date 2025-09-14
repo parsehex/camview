@@ -9,7 +9,13 @@ router.post('/query', async (req, res) => {
 	try {
 		const ollamaHost = await getAppSetting('ollamaHost');
 		const ollamaModel = await getAppSetting('ollamaModel');
-		const { prompt, cameraId } = req.body;
+		const {
+			prompt,
+			cameraId,
+			responseType = 'string',
+			think = false,
+			isCustom = false,
+		} = req.body;
 
 		if (!ollamaHost) {
 			return res.status(400).send('Ollama Host is not configured.');
@@ -34,9 +40,31 @@ router.post('/query', async (req, res) => {
 		res.write(`data:image/jpeg;base64,${imageBase64}\n`); // Send image as the first line
 
 		const ollamaInstance = new Ollama({ host: ollamaHost });
+
+		// Construct enhanced prompt based on parameters
+		let enhancedPrompt = prompt;
+		if (think) {
+			enhancedPrompt = `Please analyze this image and provide your reasoning.
+First, think step by step about what you see to improve your response, and share your thoughts in a "thoughts" key.
+Then, provide the final answer in a "value" key.
+The response should be in JSON format with keys "thoughts" and "value".
+
+${prompt}`;
+		} else if (responseType === 'array') {
+			enhancedPrompt = `Please analyze this image and provide a list of items.
+Return your response as a JSON object with a "value" key containing an array.
+
+${prompt}`;
+		} else {
+			enhancedPrompt = `Attached is a single frame from a security camera. Assistant's task is to evaluate and respond to the following query:
+
+${prompt}`;
+		}
+
 		const response = await ollamaInstance.generate({
 			model: ollamaModel,
-			prompt: prompt,
+			prompt: enhancedPrompt,
+			format: !isCustom ? 'json' : undefined,
 			images: [imageBase64],
 			stream: true,
 			options: { temperature: 0.05, num_predict: 512 },

@@ -33,6 +33,7 @@ const queryOllama = async () => {
 				'Content-Type': 'application/json',
 			},
 			body: JSON.stringify({
+				isCustom: true,
 				prompt: ollamaPrompt.value,
 				cameraId: cameraId.value,
 			}),
@@ -80,10 +81,9 @@ const queryOllama = async () => {
 </script>
 <template>
 	<div class="ollama-controls">
-		<h3>Ollama Query</h3>
 		<textarea v-model="ollamaPrompt" @input="saveOllamaPrompt" placeholder="Enter your prompt for Ollama..."
-			rows="4"></textarea>
-		<button @click="queryOllama" :disabled="isQueryingOllama"> {{ isQueryingOllama ? 'Querying...' : 'Query Ollama' }}
+			rows="10"></textarea>
+		<button @click="queryOllama" :disabled="isQueryingOllama"> {{ isQueryingOllama ? 'Querying...' : 'Send Query' }}
 		</button>
 		<div v-if="ollamaResponse || ollamaImage" class="ollama-response">
 			<img v-if="ollamaImage" :src="ollamaImage" alt="Query Image" class="ollama-query-image" />

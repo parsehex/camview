@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onBeforeUnmount } from 'vue';
-import { Play, Square, RotateCw, MessageSquareText } from 'lucide-vue-next';
+import { Play, Square, RotateCw, Code } from 'lucide-vue-next';
 import mpegts from 'mpegts.js';
 import PtzControls from './PtzControls.vue';
 import { delay } from '@/utils';
 import CustomStreamQuery from './CustomStreamQuery.vue';
+import StreamQueryManager from './StreamQueryManager.vue';
 
 const props = defineProps<{
 	cameraId: number;
@@ -46,6 +47,7 @@ const toggleStream = () => {
 };
 
 const showOllamaControls = ref(false);
+const ollamaViewMode = ref<'simple' | 'advanced'>('simple'); // 'simple' for CustomStreamQuery, 'advanced' for StreamQueryManager
 const ollamaPrompt = ref(localStorage.getItem(`ollamaPrompt-${props.cameraId}`) || '');
 const ollamaResponse = ref('');
 const ollamaImage = ref(''); // New ref for the image
@@ -53,6 +55,14 @@ const isQueryingOllama = ref(false);
 
 const toggleOllamaControls = () => {
 	showOllamaControls.value = !showOllamaControls.value;
+	// Reset to simple view when toggling off/on
+	if (showOllamaControls.value) {
+		ollamaViewMode.value = 'simple';
+	}
+};
+
+const switchOllamaView = (mode: 'simple' | 'advanced') => {
+	ollamaViewMode.value = mode;
 };
 
 const saveOllamaPrompt = () => {
@@ -201,17 +211,25 @@ onBeforeUnmount(() => {
 						<Square v-if="isStreaming" />
 						<Play v-else />
 					</button>
-					<button @click="toggleOllamaControls" class="ollama-toggle-button">
-						<MessageSquareText />
+					<button @click="toggleOllamaControls" class="ollama-toggle-button" title="Queries">
+						<Code />
 					</button>
 				</div>
 			</div>
-			<CustomStreamQuery v-if="showOllamaControls" :camera-id="cameraId" />
 		</div>
 		<PtzControls v-if="onvifControlAvailable" :camera-id="cameraId" :send-ptz-command="sendPtzCommand" />
 	</div>
+	<div v-if="showOllamaControls" class="ollama-controls-container">
+		<div class="ollama-view-toggle">
+			<button @click="switchOllamaView('simple')" :class="{ active: ollamaViewMode === 'simple' }"> Simple </button>
+			<button @click="switchOllamaView('advanced')" :class="{ active: ollamaViewMode === 'advanced' }"> Advanced
+			</button>
+		</div>
+		<CustomStreamQuery v-if="ollamaViewMode === 'simple'" :camera-id="cameraId" />
+		<StreamQueryManager v-if="ollamaViewMode === 'advanced'" :camera-id="cameraId" />
+	</div>
 </template>
-<style scoped>
+<style>
 .camera-stream-container {
 	display: flex;
 	gap: 20px;
@@ -478,6 +496,37 @@ video {
 
 .restart-stream-button .lucide {
 	stroke: white;
+}
+
+/* Ollama view toggle styles */
+.ollama-view-toggle {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 16px;
+}
+
+.ollama-view-toggle button {
+	flex: 1;
+	padding: 8px 12px;
+	background-color: #6c757d;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 14px;
+	transition: background-color 0.2s ease;
+}
+
+.ollama-view-toggle button:hover {
+	background-color: #5a6268;
+}
+
+.ollama-view-toggle button.active {
+	background-color: #007bff;
+}
+
+.ollama-view-toggle button.active:hover {
+	background-color: #0056b3;
 }
 
 button {
