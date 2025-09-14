@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
+import { ref, onBeforeUnmount } from 'vue';
 import { Play, Square, RotateCw, MessageSquareText } from 'lucide-vue-next';
 import mpegts from 'mpegts.js';
 import PtzControls from './PtzControls.vue';
 import { delay } from '@/utils';
+import CustomStreamQuery from './CustomStreamQuery.vue';
 
 const props = defineProps<{
 	cameraId: number;
@@ -205,17 +206,7 @@ onBeforeUnmount(() => {
 					</button>
 				</div>
 			</div>
-			<div v-if="showOllamaControls" class="ollama-controls">
-				<h3>Ollama Query</h3>
-				<textarea v-model="ollamaPrompt" @input="saveOllamaPrompt" placeholder="Enter your prompt for Ollama..."
-					rows="4"></textarea>
-				<button @click="queryOllama" :disabled="isQueryingOllama"> {{ isQueryingOllama ? 'Querying...' : 'Query Ollama'
-				}} </button>
-				<div v-if="ollamaResponse || ollamaImage" class="ollama-response">
-					<img v-if="ollamaImage" :src="ollamaImage" alt="Query Image" class="ollama-query-image" />
-					<p>{{ ollamaResponse }}</p>
-				</div>
-			</div>
+			<CustomStreamQuery v-if="showOllamaControls" :camera-id="cameraId" />
 		</div>
 		<PtzControls v-if="onvifControlAvailable" :camera-id="cameraId" :send-ptz-command="sendPtzCommand" />
 	</div>
