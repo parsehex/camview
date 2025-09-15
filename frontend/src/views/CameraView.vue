@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import CameraStream from '../components/CameraStream.vue';
+import DiscoverCameras from '@/components/DiscoverCameras.vue';
 
 interface Camera {
 	id?: number;
@@ -14,28 +15,6 @@ interface Camera {
 const cameras = ref<Camera[]>([]);
 const newCamera = ref<Camera>({ name: '', rtspUrl: '', onvifUrl: '', username: '', password: '' });
 const editingCamera = ref<Camera | null>(null); // To hold the camera being edited
-const discoveredDevices = ref<any[]>([]);
-
-const discoverOnvifDevices = async () => {
-	try {
-		const response = await fetch('http://localhost:3000/api/onvif/discover');
-		discoveredDevices.value = await response.json();
-	} catch (error) {
-		console.error('Error discovering ONVIF devices:', error);
-	}
-};
-
-const selectDevice = (device: any) => {
-	if (device.xaddrs && device.xaddrs.length > 0) {
-		try {
-			const url = new URL(device.xaddrs[0]);
-			newCamera.value.rtspUrl = url.hostname;
-		} catch (error) {
-			console.error('Error parsing device xaddr URL:', error);
-			newCamera.value.rtspUrl = device.xaddrs[0]; // Fallback to full URL if parsing fails
-		}
-	}
-};
 
 const fetchCameras = async () => {
 	try {
@@ -193,17 +172,7 @@ const deleteCamera = async (id: number | undefined) => {
 						class="bg-green-600 text-white px-3.75 py-2.5 border-none rounded cursor-pointer text-base hover:bg-green-700">Add</button>
 				</form>
 			</div>
-			<div class="p-3.75 border border-gray-400 rounded-lg text-center">
-				<h2 class="text-gray-800 mb-3.75">Discover Cameras</h2>
-				<button @click="discoverOnvifDevices"
-					class="bg-green-600 text-white px-3.75 py-2.5 border-none rounded cursor-pointer text-base hover:bg-green-700">Discover
-					Devices</button>
-				<ul class="list-none p-0 mt-4">
-					<li v-for="device in discoveredDevices" :key="device.urn" @click="selectDevice(device)"
-						class="border border-gray-200 p-2.5 mb-2 rounded cursor-pointer hover:bg-gray-100"> {{ device.name }} {{
-							device.xaddrs.join(', ') }} </li>
-				</ul>
-			</div>
+			<DiscoverCameras @select="newCamera.rtspUrl = $event" />
 		</div>
 	</div>
 </template>
