@@ -65,6 +65,14 @@ const switchOllamaView = (mode: 'simple' | 'advanced') => {
 	ollamaViewMode.value = mode;
 };
 
+const getToggleButtonClass = (mode: 'simple' | 'advanced') => {
+	const baseClasses = 'flex-1 py-2 px-3 text-white border-none rounded cursor-pointer text-sm transition-colors duration-200';
+	const isActive = ollamaViewMode.value === mode;
+	return isActive
+		? `${baseClasses} bg-blue-500 hover:bg-blue-600`
+		: `${baseClasses} bg-gray-500 hover:bg-gray-600`;
+};
+
 const saveOllamaPrompt = () => {
 	localStorage.setItem(`ollamaPrompt-${props.cameraId}`, ollamaPrompt.value);
 };
@@ -205,348 +213,37 @@ onBeforeUnmount(() => {
 });
 </script>
 <template>
-	<div class="camera-stream-container">
-		<div class="camera-stream">
-			<div class="video-and-controls">
-				<video ref="videoRef" controls autoplay muted></video>
-				<div class="stream-buttons">
-					<button v-if="isStreaming" @click="restartStream" class="restart-stream-button">
-						<RotateCw />
+	<div class="flex gap-5 mt-2 flex-wrap">
+		<div
+			class="flex-grow border border-gray-200 p-2.5 rounded-lg bg-gray-100 flex flex-col items-center justify-center gap-3.75">
+			<div class="flex items-center gap-2.5 w-full justify-center">
+				<video ref="videoRef" controls autoplay muted class="w-full h-90 max-w-[640px] block bg-black"></video>
+				<div class="flex flex-col gap-2.5">
+					<button v-if="isStreaming" @click="restartStream"
+						class="w-10 h-10 flex justify-center items-center cursor-pointer p-0 rounded-full bg-amber-400 hover:bg-amber-500 text-white transition-colors duration-300">
+						<RotateCw class="stroke-white" />
 					</button>
-					<button @click="toggleStream" :class="['stream-toggle-button', isStreaming ? 'is-streaming' : '']">
-						<Square v-if="isStreaming" />
-						<Play v-else />
+					<button @click="toggleStream"
+						:class="['w-10 h-10 flex justify-center items-center cursor-pointer p-0 rounded-full transition-colors duration-300', isStreaming ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600']">
+						<Square v-if="isStreaming" class="stroke-white" />
+						<Play v-else class="stroke-white" />
 					</button>
-					<button @click="toggleOllamaControls" class="ollama-toggle-button" title="Queries">
-						<Code />
+					<button @click="toggleOllamaControls"
+						class="w-10 h-10 flex justify-center items-center cursor-pointer p-0 rounded-full bg-blue-500 hover:bg-blue-600 text-white transition-colors duration-300"
+						title="Queries">
+						<Code class="stroke-white" />
 					</button>
 				</div>
 			</div>
 		</div>
 		<PtzControls v-if="onvifControlAvailable" :camera-id="cameraId" :send-ptz-command="sendPtzCommand" />
 	</div>
-	<div v-if="showOllamaControls" class="ollama-controls-container">
-		<div class="ollama-view-toggle">
-			<button @click="switchOllamaView('simple')" :class="{ active: ollamaViewMode === 'simple' }"> Simple </button>
-			<button @click="switchOllamaView('advanced')" :class="{ active: ollamaViewMode === 'advanced' }"> Advanced
-			</button>
+	<div v-if="showOllamaControls" class="mt-5">
+		<div class="flex gap-2 mb-4">
+			<button @click="switchOllamaView('simple')" :class="getToggleButtonClass('simple')"> Simple </button>
+			<button @click="switchOllamaView('advanced')" :class="getToggleButtonClass('advanced')"> Advanced </button>
 		</div>
 		<CustomStreamQuery v-if="ollamaViewMode === 'simple'" :camera-id="cameraId" />
 		<StreamQueryManager v-if="ollamaViewMode === 'advanced'" :camera-id="cameraId" />
 	</div>
 </template>
-<style>
-.camera-stream-container {
-	display: flex;
-	gap: 20px;
-	margin-top: 20px;
-	flex-wrap: wrap;
-	/* Allow wrapping for smaller screens */
-}
-
-.camera-stream {
-	flex-grow: 1;
-	border: 1px solid #eee;
-	padding: 10px;
-	border-radius: 8px;
-	background-color: #f0f0f0;
-	display: flex;
-	flex-direction: column;
-	/* Stack video and ollama controls vertically */
-	align-items: center;
-	justify-content: center;
-	gap: 15px;
-	/* Space between video and ollama controls */
-}
-
-.video-and-controls {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	width: 100%;
-	/* Ensure it takes full width */
-	justify-content: center;
-}
-
-video {
-	width: 100%;
-	height: 360px;
-	max-width: 640px;
-	display: block;
-	background-color: black;
-	/* Placeholder for video feed */
-}
-
-.stream-buttons {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-}
-
-.stream-toggle-button,
-.restart-stream-button,
-.ollama-toggle-button {
-	background-color: #28a745;
-	color: white;
-	border: none;
-	border-radius: 50%;
-	width: 40px;
-	height: 40px;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	cursor: pointer;
-	transition: background-color 0.3s ease;
-	padding: 0;
-}
-
-.stream-toggle-button:hover,
-.restart-stream-button:hover,
-.ollama-toggle-button:hover {
-	background-color: #218838;
-}
-
-.stream-toggle-button .lucide,
-.restart-stream-button .lucide,
-.ollama-toggle-button .lucide {
-	stroke: white;
-}
-
-.stream-toggle-button.is-streaming {
-	background-color: #dc3545;
-}
-
-.stream-toggle-button.is-streaming:hover {
-	background-color: #c82333;
-}
-
-.restart-stream-button {
-	background-color: #ffc107;
-}
-
-.restart-stream-button:hover {
-	background-color: #e0a800;
-}
-
-.ollama-toggle-button {
-	background-color: #007bff;
-	/* Blue for Ollama button */
-}
-
-.ollama-toggle-button:hover {
-	background-color: #0056b3;
-}
-
-.ollama-controls {
-	width: 100%;
-	max-width: 640px;
-	/* Match video width */
-	padding: 15px;
-	margin: auto;
-	border: 1px solid #ccc;
-	border-radius: 8px;
-	background-color: #fff;
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-}
-
-.ollama-controls h3 {
-	margin-top: 0;
-	color: #333;
-}
-
-.ollama-controls textarea {
-	width: calc(100% - 20px);
-	/* Account for padding */
-	padding: 10px;
-	border: 1px solid #ddd;
-	border-radius: 5px;
-	font-size: 1rem;
-	resize: vertical;
-	min-height: 80px;
-}
-
-.ollama-controls button {
-	align-self: flex-start;
-	/* Align button to the left */
-	padding: 10px 20px;
-	background-color: #28a745;
-	color: white;
-	border: none;
-	border-radius: 5px;
-	cursor: pointer;
-	transition: background-color 0.3s ease;
-}
-
-.ollama-controls button:hover:not(:disabled) {
-	background-color: #218838;
-}
-
-.ollama-controls button:disabled {
-	background-color: #cccccc;
-	cursor: not-allowed;
-}
-
-.ollama-response {
-	margin-top: 15px;
-	padding: 10px;
-	border: 1px solid #eee;
-	border-radius: 5px;
-	background-color: #f0f8ff;
-	white-space: pre-wrap;
-	/* Preserve whitespace and line breaks */
-}
-
-.ollama-query-image {
-	max-width: 100%;
-	height: auto;
-	margin-bottom: 10px;
-	border-radius: 4px;
-	border: 1px solid #ddd;
-}
-
-.ollama-response h4 {
-	margin-top: 0;
-	color: #555;
-}
-
-/* General button styles (moved to the end or a common file if many components use it) */
-button {
-	padding: 8px 12px;
-	background-color: #007bff;
-	color: white;
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
-	margin-right: 10px;
-}
-
-button:hover {
-	background-color: #0056b3;
-}
-
-.stream-toggle-button:hover {
-	background-color: #218838;
-}
-
-.stream-toggle-button .lucide {
-	stroke: white;
-}
-
-/* Style for stop icon when streaming */
-.stream-toggle-button.is-streaming {
-	background-color: #dc3545;
-}
-
-.stream-toggle-button.is-streaming:hover {
-	background-color: #c82333;
-}
-
-.camera-stream-container {
-	display: flex;
-	gap: 20px;
-	margin-top: 20px;
-}
-
-.camera-stream {
-	flex-grow: 1;
-	border: 1px solid #eee;
-	padding: 10px;
-	border-radius: 8px;
-	background-color: #f0f0f0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-video {
-	width: 100%;
-	height: 360px;
-	max-width: 640px;
-	display: block;
-}
-
-.video-and-controls {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-}
-
-.stream-buttons {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	/* Space between the buttons */
-}
-
-.restart-stream-button {
-	background-color: #ffc107;
-	/* A distinct color, e.g., yellow for restart */
-	color: white;
-	border: none;
-	border-radius: 50%;
-	width: 40px;
-	height: 40px;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	cursor: pointer;
-	transition: background-color 0.3s ease;
-	padding: 0;
-}
-
-.restart-stream-button:hover {
-	background-color: #e0a800;
-}
-
-.restart-stream-button .lucide {
-	stroke: white;
-}
-
-/* Ollama view toggle styles */
-.ollama-view-toggle {
-	display: flex;
-	gap: 8px;
-	margin-bottom: 16px;
-}
-
-.ollama-view-toggle button {
-	flex: 1;
-	padding: 8px 12px;
-	background-color: #6c757d;
-	color: white;
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
-	font-size: 14px;
-	transition: background-color 0.2s ease;
-}
-
-.ollama-view-toggle button:hover {
-	background-color: #5a6268;
-}
-
-.ollama-view-toggle button.active {
-	background-color: #007bff;
-}
-
-.ollama-view-toggle button.active:hover {
-	background-color: #0056b3;
-}
-
-button {
-	/* General button styles */
-	padding: 8px 12px;
-	background-color: #007bff;
-	color: white;
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
-	margin-right: 10px;
-}
-
-button:hover {
-	background-color: #0056b3;
-}
-</style>

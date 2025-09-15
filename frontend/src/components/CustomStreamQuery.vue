@@ -80,14 +80,16 @@ const queryOllama = async () => {
 };
 </script>
 <template>
-	<div class="ollama-controls">
-		<textarea v-model="ollamaPrompt" @input="saveOllamaPrompt" placeholder="Enter your prompt for Ollama..."
-			rows="10"></textarea>
-		<button @click="queryOllama" :disabled="isQueryingOllama"> {{ isQueryingOllama ? 'Querying...' : 'Send Query' }}
-		</button>
-		<div v-if="ollamaResponse || ollamaImage" class="ollama-response">
-			<img v-if="ollamaImage" :src="ollamaImage" alt="Query Image" class="ollama-query-image" />
-			<p>{{ ollamaResponse }}</p>
+	<div class="w-full max-w-[640px] p-4 mx-auto border border-gray-300 rounded-lg bg-white flex flex-col gap-2.5">
+		<textarea v-model="ollamaPrompt" @input="saveOllamaPrompt" placeholder="Enter your prompt for Ollama..." rows="10"
+			class="w-full p-2.5 border border-gray-300 rounded-md text-base resize-y min-h-20"></textarea>
+		<button @click="queryOllama" :disabled="isQueryingOllama"
+			class="self-start px-5 py-2 bg-green-500 text-white border-none rounded-md cursor-pointer transition-colors duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed">
+			{{ isQueryingOllama ? 'Querying...' : 'Send Query' }} </button>
+		<div v-if="ollamaResponse || ollamaImage" class="mt-3.75 p-2.5 border border-gray-200 rounded-md bg-blue-50">
+			<img v-if="ollamaImage" :src="ollamaImage" alt="Query Image"
+				class="max-w-full h-auto mb-2.5 rounded-md border border-gray-300" />
+			<p class="whitespace-pre-wrap">{{ ollamaResponse }}</p>
 		</div>
 	</div>
 </template>

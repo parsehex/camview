@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue';
 import CameraStream from '../components/CameraStream.vue';
 
-
 interface Camera {
 	id?: number;
 	name: string;
@@ -119,175 +118,92 @@ const deleteCamera = async (id: number | undefined) => {
 };
 </script>
 <template>
-	<div class="camera-view">
-		<h1>Camera Management</h1>
-		<ul v-if="cameras.length" class="camera-list">
-			<li v-for="camera in cameras" :key="camera.id">
-				<div v-if="editingCamera && editingCamera.id === camera.id" class="edit-form">
-					<h3>Edit Camera</h3>
-					<div>
-						<label :for="`editName-${camera.id}`">Name:</label>
-						<input type="text" :id="`editName-${camera.id}`" v-model="editingCamera.name" required />
+	<div class="p-4">
+		<h1 class="text-2xl font-bold mb-4">Camera Management</h1>
+		<ul v-if="cameras.length" class="list-none p-0 mb-7.5">
+			<li v-for="camera in cameras" :key="camera.id" class="border border-gray-200 p-2.5 mb-2 rounded">
+				<div v-if="editingCamera && editingCamera.id === camera.id"
+					class="mt-2.5 p-2.5 border border-gray-300 rounded-md bg-white">
+					<h3 class="text-lg font-semibold mb-2">Edit Camera</h3>
+					<div class="mb-2.5">
+						<label :for="`editName-${camera.id}`" class="block mb-1.25 font-bold">Name:</label>
+						<input type="text" :id="`editName-${camera.id}`" v-model="editingCamera.name" required
+							class="w-full p-2 border border-gray-300 rounded" />
 					</div>
-					<div>
-						<label :for="`editRtspUrl-${camera.id}`">RTSP URL:</label>
-						<input type="text" :id="`editRtspUrl-${camera.id}`" v-model="editingCamera.rtspUrl" required />
+					<div class="mb-2.5">
+						<label :for="`editRtspUrl-${camera.id}`" class="block mb-1.25 font-bold">RTSP URL:</label>
+						<input type="text" :id="`editRtspUrl-${camera.id}`" v-model="editingCamera.rtspUrl" required
+							class="w-full p-2 border border-gray-300 rounded" />
 					</div>
-					<div>
-						<label :for="`editOnvifUrl-${camera.id}`">ONVIF URL (Optional):</label>
-						<input type="text" :id="`editOnvifUrl-${camera.id}`" v-model="editingCamera.onvifUrl" />
+					<div class="mb-2.5">
+						<label :for="`editOnvifUrl-${camera.id}`" class="block mb-1.25 font-bold">ONVIF URL (Optional):</label>
+						<input type="text" :id="`editOnvifUrl-${camera.id}`" v-model="editingCamera.onvifUrl"
+							class="w-full p-2 border border-gray-300 rounded" />
 					</div>
-					<div>
-						<label :for="`editUsername-${camera.id}`">Username:</label>
-						<input type="text" :id="`editUsername-${camera.id}`" v-model="editingCamera.username" required />
+					<div class="mb-2.5">
+						<label :for="`editUsername-${camera.id}`" class="block mb-1.25 font-bold">Username:</label>
+						<input type="text" :id="`editUsername-${camera.id}`" v-model="editingCamera.username" required
+							class="w-full p-2 border border-gray-300 rounded" />
 					</div>
-					<div>
-						<label :for="`editPassword-${camera.id}`">Password:</label>
-						<input type="password" :id="`editPassword-${camera.id}`" v-model="editingCamera.password" required />
+					<div class="mb-2.5">
+						<label :for="`editPassword-${camera.id}`" class="block mb-1.25 font-bold">Password:</label>
+						<input type="password" :id="`editPassword-${camera.id}`" v-model="editingCamera.password" required
+							class="w-full p-2 border border-gray-300 rounded" />
 					</div>
-					<button @click="saveCamera">Save</button>
-					<button @click="cancelEdit">Cancel</button>
+					<button @click="saveCamera"
+						class="bg-blue-600 text-white px-3.75 py-2.5 border-none rounded cursor-pointer text-base hover:bg-blue-700 mr-2.5">Save</button>
+					<button @click="cancelEdit"
+						class="bg-gray-600 text-white px-3.75 py-2.5 border-none rounded cursor-pointer text-base hover:bg-gray-700">Cancel</button>
 				</div>
-				<div v-else> {{ camera.name }} ({{ camera.rtspUrl }}) <button @click="editCamera(camera)">Edit</button>
-					<button @click="deleteCamera(camera.id)" class="delete-button">Delete</button>
+				<div v-else class="flex flex-col items-center justify-between">
+					<span>{{ camera.name }} ({{ camera.rtspUrl }}) <button @click="editCamera(camera)"
+							class="bg-blue-600 text-white px-3.75 py-2.5 border-none rounded cursor-pointer text-base hover:bg-blue-700 mr-2.5">Edit</button>
+						<button @click="deleteCamera(camera.id)"
+							class="bg-red-600 text-white px-3.75 py-2.5 border-none rounded cursor-pointer text-base hover:bg-red-700 ml-2.5">Delete</button>
+					</span>
 					<CameraStream v-if="camera.id" :camera-id="camera.id" :rtsp-url="camera.rtspUrl" />
 				</div>
 			</li>
 		</ul>
-		<div class="form-and-discovery-container">
-			<div class="add-camera">
-				<h2>Add a Camera</h2>
+		<div class="flex gap-7.5 w-full items-start mb-7.5">
+			<div class="flex-grow p-3.75 border border-gray-400 rounded-lg">
+				<h2 class="text-gray-800 mb-3.75">Add a Camera</h2>
 				<form @submit.prevent="addCamera">
-					<div>
-						<label for="newName">Name:</label>
-						<input type="text" id="newName" v-model="newCamera.name" required />
+					<div class="mb-2.5">
+						<label for="newName" class="block mb-1.25 font-bold">Name:</label>
+						<input type="text" id="newName" v-model="newCamera.name" required
+							class="w-full p-2 border border-gray-300 rounded" />
 					</div>
-					<div>
-						<label for="newHost">Host (IP or Domain):</label>
-						<input type="text" id="newHost" placeholder="127.0.0.1" v-model="newCamera.rtspUrl" required />
+					<div class="mb-2.5">
+						<label for="newHost" class="block mb-1.25 font-bold">Host (IP or Domain):</label>
+						<input type="text" id="newHost" placeholder="127.0.0.1" v-model="newCamera.rtspUrl" required
+							class="w-full p-2 border border-gray-300 rounded" />
 					</div>
-					<div>
-						<label for="newUsername">Username:</label>
-						<input type="text" id="newUsername" v-model="newCamera.username" />
+					<div class="mb-2.5">
+						<label for="newUsername" class="block mb-1.25 font-bold">Username:</label>
+						<input type="text" id="newUsername" v-model="newCamera.username"
+							class="w-full p-2 border border-gray-300 rounded" />
 					</div>
-					<div>
-						<label for="newPassword">Password:</label>
-						<input type="password" id="newPassword" v-model="newCamera.password" />
+					<div class="mb-2.5">
+						<label for="newPassword" class="block mb-1.25 font-bold">Password:</label>
+						<input type="password" id="newPassword" v-model="newCamera.password"
+							class="w-full p-2 border border-gray-300 rounded" />
 					</div>
-					<button type="submit">Add</button>
+					<button type="submit"
+						class="bg-green-600 text-white px-3.75 py-2.5 border-none rounded cursor-pointer text-base hover:bg-green-700">Add</button>
 				</form>
 			</div>
-			<div class="onvif-discovery">
-				<h2>Discover Cameras</h2>
-				<button @click="discoverOnvifDevices">Discover Devices</button>
-				<ul>
-					<li v-for="device in discoveredDevices" :key="device.urn" @click="selectDevice(device)"> {{ device.name }} {{
-						device.xaddrs.join(', ') }} </li>
+			<div class="p-3.75 border border-gray-400 rounded-lg text-center">
+				<h2 class="text-gray-800 mb-3.75">Discover Cameras</h2>
+				<button @click="discoverOnvifDevices"
+					class="bg-green-600 text-white px-3.75 py-2.5 border-none rounded cursor-pointer text-base hover:bg-green-700">Discover
+					Devices</button>
+				<ul class="list-none p-0 mt-4">
+					<li v-for="device in discoveredDevices" :key="device.urn" @click="selectDevice(device)"
+						class="border border-gray-200 p-2.5 mb-2 rounded cursor-pointer hover:bg-gray-100"> {{ device.name }} {{
+							device.xaddrs.join(', ') }} </li>
 				</ul>
 			</div>
 		</div>
 	</div>
 </template>
-<style scoped>
-.form-and-discovery-container {
-	display: flex;
-	gap: 30px;
-	width: 100%;
-	align-items: flex-start;
-	margin-bottom: 30px;
-}
-
-.add-camera {
-	flex-grow: 1;
-	padding: 15px;
-	border: 1px solid #ccc;
-	border-radius: 8px;
-}
-
-.add-camera,
-.camera-list {
-	margin-bottom: 30px;
-}
-
-.edit-form {
-	margin-top: 10px;
-	padding: 10px;
-	border: 1px solid #ddd;
-	border-radius: 5px;
-	background-color: #fefefe;
-}
-
-.edit-form button {
-	margin-right: 10px;
-	background-color: #007bff;
-}
-
-.edit-form button:hover {
-	background-color: #0056b3;
-}
-
-.delete-button {
-	background-color: #dc3545;
-	margin-left: 10px;
-}
-
-.delete-button:hover {
-	background-color: #c82333;
-}
-
-.add-camera h2,
-.camera-list h2,
-.onvif-discovery h2 {
-	color: #333;
-	margin-bottom: 15px;
-}
-
-.onvif-discovery {
-	padding: 15px;
-	border: 1px solid #ccc;
-	border-radius: 8px;
-}
-
-form div {
-	margin-bottom: 10px;
-}
-
-label {
-	display: block;
-	margin-bottom: 5px;
-	font-weight: bold;
-}
-
-input[type="text"] {
-	width: 100%;
-	padding: 8px;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-}
-
-button {
-	background-color: #4CAF50;
-	color: white;
-	padding: 10px 15px;
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
-	font-size: 16px;
-}
-
-button:hover {
-	background-color: #45a049;
-}
-
-ul {
-	list-style: none;
-	padding: 0;
-}
-
-li {
-	border: 1px solid #eee;
-	padding: 10px;
-	margin-bottom: 8px;
-	border-radius: 4px;
-}
-</style>

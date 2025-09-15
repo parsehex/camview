@@ -9,130 +9,46 @@ const props = defineProps<{
 
 const onvifControlAvailable = ref(true); // This will be passed from parent or determined here if needed
 
+const getPtzButtonClasses = (isStopButton: boolean = false, isZoomButton: boolean = false) => {
+	const baseClasses = 'w-12.5 h-12.5 flex justify-center items-center text-white border-none cursor-pointer transition-colors duration-300 ease-in-out p-0';
+	const shapeClasses = isZoomButton ? 'rounded' : 'rounded-full';
+	const colorClasses = isStopButton ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700';
+	return `${baseClasses} ${shapeClasses} ${colorClasses}`;
+};
 </script>
 <template>
-	<div v-if="onvifControlAvailable" class="ptz-controls-container">
-		<div class="ptz-dial">
-			<button @mousedown="props.sendPtzCommand('moveUp')" @mouseup="props.sendPtzCommand('stop')" class="ptz-button up">
-				<ArrowUp />
+	<div v-if="onvifControlAvailable"
+		class="flex flex-col items-center p-2.5 pt-12.5 border border-gray-300 rounded-lg bg-gray-200 gap-3.75">
+		<div class="grid grid-cols-3 grid-rows-3 gap-1.25 justify-items-center items-center relative w-40 h-40">
+			<button @mousedown="props.sendPtzCommand('moveUp')" @mouseup="props.sendPtzCommand('stop')"
+				:class="[getPtzButtonClasses(), 'col-start-2 row-start-1']">
+				<ArrowUp class="w-6 h-6" />
 			</button>
 			<button @mousedown="props.sendPtzCommand('moveLeft')" @mouseup="props.sendPtzCommand('stop')"
-				class="ptz-button left">
-				<ArrowLeft />
+				:class="[getPtzButtonClasses(), 'col-start-1 row-start-2']">
+				<ArrowLeft class="w-6 h-6" />
 			</button>
-			<button @mousedown="props.sendPtzCommand('stop')" class="ptz-button stop">
-				<StopCircle />
+			<button @mousedown="props.sendPtzCommand('stop')" :class="[getPtzButtonClasses(true), 'col-start-2 row-start-2']">
+				<StopCircle class="w-6 h-6" />
 			</button>
 			<button @mousedown="props.sendPtzCommand('moveRight')" @mouseup="props.sendPtzCommand('stop')"
-				class="ptz-button right">
-				<ArrowRight />
+				:class="[getPtzButtonClasses(), 'col-start-3 row-start-2']">
+				<ArrowRight class="w-6 h-6" />
 			</button>
 			<button @mousedown="props.sendPtzCommand('moveDown')" @mouseup="props.sendPtzCommand('stop')"
-				class="ptz-button down">
-				<ArrowDown />
+				:class="[getPtzButtonClasses(), 'col-start-2 row-start-3']">
+				<ArrowDown class="w-6 h-6" />
 			</button>
 		</div>
-		<div class="zoom-controls">
+		<div class="flex gap-2.5 mt-2.5">
 			<button @mousedown="props.sendPtzCommand('zoomIn')" @mouseup="props.sendPtzCommand('stop')"
-				class="ptz-button zoom-in">
-				<Plus />
+				:class="getPtzButtonClasses(false, true)">
+				<Plus class="w-6 h-6" />
 			</button>
 			<button @mousedown="props.sendPtzCommand('zoomOut')" @mouseup="props.sendPtzCommand('stop')"
-				class="ptz-button zoom-out">
-				<Minus />
+				:class="getPtzButtonClasses(false, true)">
+				<Minus class="w-6 h-6" />
 			</button>
 		</div>
 	</div>
 </template>
-<style scoped>
-.ptz-controls-container {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	padding: 10px;
-	padding-top: 50px;
-	border: 1px solid #ddd;
-	border-radius: 8px;
-	background-color: #e9e9e9;
-	gap: 15px;
-}
-
-.ptz-dial {
-	display: grid;
-	grid-template-columns: repeat(3, 50px);
-	grid-template-rows: repeat(3, 50px);
-	gap: 5px;
-	justify-items: center;
-	align-items: center;
-	position: relative;
-	width: 160px;
-	/* 3*50px + 2*5px + 2*padding */
-	height: 160px;
-}
-
-.ptz-button {
-	width: 50px;
-	height: 50px;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	border-radius: 50%;
-	background-color: #6c757d;
-	color: white;
-	border: none;
-	cursor: pointer;
-	transition: background-color 0.3s ease;
-	padding: 0;
-}
-
-.ptz-button:hover {
-	background-color: #5a6268;
-}
-
-.ptz-button .lucide {
-	width: 24px;
-	height: 24px;
-}
-
-.ptz-dial .up {
-	grid-column: 2;
-	grid-row: 1;
-}
-
-.ptz-dial .left {
-	grid-column: 1;
-	grid-row: 2;
-}
-
-.ptz-dial .stop {
-	grid-column: 2;
-	grid-row: 2;
-	background-color: #dc3545;
-	/* Red for stop */
-}
-
-.ptz-dial .stop:hover {
-	background-color: #c82333;
-}
-
-.ptz-dial .right {
-	grid-column: 3;
-	grid-row: 2;
-}
-
-.ptz-dial .down {
-	grid-column: 2;
-	grid-row: 3;
-}
-
-.zoom-controls {
-	display: flex;
-	gap: 10px;
-	margin-top: 10px;
-}
-
-.zoom-controls .ptz-button {
-	border-radius: 4px;
-	/* Square buttons for zoom */
-}
-</style>

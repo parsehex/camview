@@ -208,84 +208,100 @@ const formatValue = (value: string | string[]): string => {
 };
 </script>
 <template>
-	<div class="stream-query-manager">
+	<div class="p-4">
 		<!-- Query List View -->
-		<div v-if="!isEditing" class="query-list-view">
-			<div class="header">
+		<div v-if="!isEditing">
+			<div class="flex justify-between items-center mb-4">
 				<h3>Saved Queries</h3>
-				<button @click="startNewQuery" class="new-query-btn">+ New Query</button>
+				<button @click="startNewQuery"
+					class="bg-green-600 text-white border-none px-4 py-2 rounded cursor-pointer hover:bg-green-700">+ New
+					Query</button>
 			</div>
-			<div v-if="queries.length === 0" class="empty-state">
+			<div v-if="queries.length === 0" class="text-center p-8 text-gray-600">
 				<p>No queries saved yet. Create your first query to get started.</p>
 			</div>
-			<div v-else class="queries-list">
-				<div v-for="query in queries" :key="query.id" class="query-item">
+			<div v-else>
+				<div v-for="query in queries" :key="query.id"
+					class="flex justify-between items-center p-4 border border-gray-300 rounded mb-2 bg-white">
 					<div class="query-info">
-						<h4>{{ query.name }}</h4>
-						<p class="query-preview">{{ query.prompt.slice(0, 100) }}{{ query.prompt.length > 100 ? '...' : '' }}</p>
-						<div class="query-meta">
-							<span class="response-type">{{ query.responseType }}</span>
-							<span v-if="query.think" class="think-flag">+ thoughts</span>
+						<h4 class="mb-2 text-gray-800">{{ query.name }}</h4>
+						<p class="mb-2 text-gray-600 text-sm">{{ query.prompt.slice(0, 100) }}{{ query.prompt.length > 100 ? '...' :
+							'' }}</p>
+						<div class="flex gap-2 text-xs">
+							<span class="bg-gray-200 px-2 py-1 rounded-sm">{{ query.responseType }}</span>
+							<span v-if="query.think" class="bg-green-100 text-green-800 px-2 py-1 rounded-sm">+ thoughts</span>
 						</div>
 					</div>
-					<div class="query-actions">
-						<button @click="runQuery(query)" :disabled="isQuerying" class="run-btn"> {{ isQuerying ? 'Running...' :
-							'Run' }} </button>
-						<button @click="editExistingQuery(query)" class="edit-btn">Edit</button>
-						<button @click="deleteQuery(query.id)" class="delete-btn">Delete</button>
+					<div class="flex gap-2">
+						<button @click="runQuery(query)" :disabled="isQuerying"
+							class="px-2.5 py-1.5 border-none rounded-sm cursor-pointer text-xs bg-blue-600 text-white disabled:bg-gray-500 disabled:cursor-not-allowed hover:bg-blue-700">
+							{{ isQuerying ? 'Running...' : 'Run' }} </button>
+						<button @click="editExistingQuery(query)"
+							class="px-2.5 py-1.5 border-none rounded-sm cursor-pointer text-xs bg-yellow-400 text-gray-900 hover:bg-yellow-500">Edit</button>
+						<button @click="deleteQuery(query.id)"
+							class="px-2.5 py-1.5 border-none rounded-sm cursor-pointer text-xs bg-red-600 text-white hover:bg-red-700">Delete</button>
 					</div>
 				</div>
 			</div>
 		</div>
 		<!-- Query Editor -->
-		<div v-else class="query-editor">
+		<div v-else class="p-4 border border-gray-300 rounded bg-white">
 			<h3>{{ selectedQuery ? 'Edit Query' : 'Create New Query' }}</h3>
-			<div class="form-group">
-				<label for="query-name">Name:</label>
-				<input id="query-name" v-model="editName" placeholder="Descriptive name for this query" type="text" />
+			<div class="mb-4">
+				<label for="query-name" class="block mb-2 font-bold">Name:</label>
+				<input id="query-name" v-model="editName" placeholder="Descriptive name for this query" type="text"
+					class="w-full p-2 border border-gray-300 rounded text-base" />
 			</div>
-			<div class="form-group">
-				<label for="query-prompt">Prompt:</label>
+			<div class="mb-4">
+				<label for="query-prompt" class="block mb-2 font-bold">Prompt:</label>
 				<textarea id="query-prompt" v-model="editPrompt"
-					placeholder="What information do you want to extract from the stream?" rows="4"></textarea>
+					placeholder="What information do you want to extract from the stream?" rows="4"
+					class="w-full p-2 border border-gray-300 rounded text-base"></textarea>
 			</div>
-			<div class="form-group">
-				<label for="response-type">Response Type:</label>
-				<select id="response-type" v-model="editResponseType">
+			<div class="mb-4">
+				<label for="response-type" class="block mb-2 font-bold">Response Type:</label>
+				<select id="response-type" v-model="editResponseType"
+					class="w-full p-2 border border-gray-300 rounded text-base">
 					<option value="string">String</option>
 					<option value="array">Array</option>
 				</select>
 			</div>
-			<div class="form-group">
-				<label class="checkbox-label">
+			<div class="mb-4">
+				<label class="flex items-center gap-2 font-normal">
 					<input type="checkbox" v-model="editThink" /> Include reasoning (thoughts) </label>
 			</div>
-			<div class="form-group">
-				<label for="frame-count">Number of Frames:</label>
-				<input id="frame-count" v-model.number="editFrameCount" type="number" min="1" max="10" />
+			<div class="mb-4">
+				<label for="frame-count" class="block mb-2 font-bold">Number of Frames:</label>
+				<input id="frame-count" v-model.number="editFrameCount" type="number" min="1" max="10"
+					class="w-full p-2 border border-gray-300 rounded text-base" />
 			</div>
-			<div class="editor-actions">
-				<button @click="saveQuery" class="save-btn">Save</button>
-				<button @click="cancelEdit" class="cancel-btn">Cancel</button>
+			<div class="flex gap-2 justify-end">
+				<button @click="saveQuery"
+					class="px-4 py-2 border-none rounded cursor-pointer bg-green-600 text-white hover:bg-green-700">Save</button>
+				<button @click="cancelEdit"
+					class="px-4 py-2 border-none rounded cursor-pointer bg-gray-600 text-white hover:bg-gray-700">Cancel</button>
 			</div>
 		</div>
 		<!-- Results Panel -->
-		<div v-if="showResults && executionResult" class="results-panel">
+		<div v-if="showResults && executionResult" class="mt-4 p-4 border border-gray-300 rounded bg-gray-100">
 			<h4>Query Results</h4>
-			<div v-if="executionResult.images && executionResult.images.length > 0" class="image-section">
-				<h5>Frames ({{ executionResult.images.length }}):</h5>
-				<div class="images-container">
+			<div v-if="executionResult.images && executionResult.images.length > 0" class="mb-4">
+				<h5 class="mb-2 text-gray-700">Frames ({{ executionResult.images.length }}):</h5>
+				<div class="flex flex-wrap gap-2 mt-2">
 					<img v-for="(image, index) in executionResult.images" :key="index" :src="image"
-						:alt="`Queried Frame ${index + 1}`" :title="`Frame ${index + 1}`" class="query-image" />
+						:alt="`Queried Frame ${index + 1}`" :title="`Frame ${index + 1}`"
+						class="max-w-[40%] h-auto border border-gray-200 rounded flex-none w-[30%]" />
 				</div>
 			</div>
-			<div v-if="executionResult.thoughts" class="thoughts-section">
-				<h5>Reasoning:</h5>
-				<div class="thoughts-content">{{ executionResult.thoughts }}</div>
+			<div v-if="executionResult.thoughts" class="mb-4">
+				<h5 class="mb-2 text-gray-700">Reasoning:</h5>
+				<div class="p-2 bg-white border border-gray-200 rounded whitespace-pre-wrap">{{ executionResult.thoughts }}
+				</div>
 			</div>
-			<div class="value-section">
-				<h5>Result:</h5>
-				<div class="value-content">{{ formatValue(executionResult.value) }}</div>
+			<div class="mb-4">
+				<h5 class="mb-2 text-gray-700">Result:</h5>
+				<div class="p-2 bg-white border border-gray-200 rounded whitespace-pre-wrap">{{
+					formatValue(executionResult.value) }}</div>
 			</div>
 			<!-- <div class="raw-section" v-if="executionResult.rawResponse">
 				<h5>Raw Response:</h5>
@@ -294,256 +310,3 @@ const formatValue = (value: string | string[]): string => {
 		</div>
 	</div>
 </template>
-<style scoped>
-.stream-query-manager {
-	padding: 1rem;
-}
-
-.header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 1rem;
-}
-
-.new-query-btn {
-	background-color: #28a745;
-	color: white;
-	border: none;
-	padding: 0.5rem 1rem;
-	border-radius: 4px;
-	cursor: pointer;
-}
-
-.new-query-btn:hover {
-	background-color: #218838;
-}
-
-.empty-state {
-	text-align: center;
-	padding: 2rem;
-	color: #666;
-}
-
-.query-item {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 1rem;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	margin-bottom: 0.5rem;
-	background-color: white;
-}
-
-.query-info h4 {
-	margin: 0 0 0.5rem 0;
-	color: #333;
-}
-
-.query-preview {
-	margin: 0 0 0.5rem 0;
-	color: #666;
-	font-size: 0.9rem;
-}
-
-.query-meta {
-	display: flex;
-	gap: 0.5rem;
-	font-size: 0.8rem;
-}
-
-.response-type {
-	background-color: #e9ecef;
-	padding: 0.2rem 0.5rem;
-	border-radius: 3px;
-}
-
-.think-flag {
-	background-color: #d4edda;
-	color: #155724;
-	padding: 0.2rem 0.5rem;
-	border-radius: 3px;
-}
-
-.query-actions {
-	display: flex;
-	gap: 0.5rem;
-}
-
-.run-btn,
-.edit-btn,
-.delete-btn {
-	padding: 0.3rem 0.6rem;
-	border: none;
-	border-radius: 3px;
-	cursor: pointer;
-	font-size: 0.8rem;
-}
-
-.run-btn {
-	background-color: #007bff;
-	color: white;
-}
-
-.run-btn:disabled {
-	background-color: #6c757d;
-	cursor: not-allowed;
-}
-
-.run-btn:hover:not(:disabled) {
-	background-color: #0056b3;
-}
-
-.edit-btn {
-	background-color: #ffc107;
-	color: #212529;
-}
-
-.edit-btn:hover {
-	background-color: #e0a800;
-}
-
-.delete-btn {
-	background-color: #dc3545;
-	color: white;
-}
-
-.delete-btn:hover {
-	background-color: #c82333;
-}
-
-.query-editor {
-	padding: 1rem;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	background-color: white;
-}
-
-.form-group {
-	margin-bottom: 1rem;
-}
-
-.form-group label {
-	display: block;
-	margin-bottom: 0.5rem;
-	font-weight: bold;
-}
-
-.form-group input,
-.form-group textarea,
-.form-group select {
-	width: 100%;
-	padding: 0.5rem;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	font-size: 1rem;
-}
-
-.checkbox-label {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	font-weight: normal;
-}
-
-.editor-actions {
-	display: flex;
-	gap: 0.5rem;
-	justify-content: flex-end;
-}
-
-.save-btn,
-.cancel-btn {
-	padding: 0.5rem 1rem;
-	border: none;
-	border-radius: 4px;
-	cursor: pointer;
-}
-
-.save-btn {
-	background-color: #28a745;
-	color: white;
-}
-
-.save-btn:hover {
-	background-color: #218838;
-}
-
-.cancel-btn {
-	background-color: #6c757d;
-	color: white;
-}
-
-.cancel-btn:hover {
-	background-color: #5a6268;
-}
-
-.results-panel {
-	margin-top: 1rem;
-	padding: 1rem;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	background-color: #f8f9fa;
-}
-
-.image-section {
-	margin-bottom: 1rem;
-}
-
-.image-section h5 {
-	margin: 0 0 0.5rem 0;
-	color: #495057;
-}
-
-.query-image {
-	max-width: 40%;
-	height: auto;
-	border: 1px solid #dee2e6;
-	border-radius: 4px;
-}
-
-.images-container {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.5rem;
-	margin-top: 0.5rem;
-}
-
-.images-container .query-image {
-	max-width: 30%;
-	flex: 0 0 30%;
-}
-
-.thoughts-section,
-.value-section,
-.raw-section {
-	margin-bottom: 1rem;
-}
-
-.thoughts-section h5,
-.value-section h5,
-.raw-section h5 {
-	margin: 0 0 0.5rem 0;
-	color: #495057;
-}
-
-.thoughts-content,
-.value-content {
-	padding: 0.5rem;
-	background-color: white;
-	border: 1px solid #dee2e6;
-	border-radius: 4px;
-	white-space: pre-wrap;
-}
-
-.raw-content {
-	font-size: 0.8rem;
-	padding: 0.5rem;
-	background-color: white;
-	border: 1px solid #dee2e6;
-	border-radius: 4px;
-	overflow-x: auto;
-	white-space: pre-wrap;
-}
-</style>
