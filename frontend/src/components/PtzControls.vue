@@ -3,7 +3,7 @@ import { defineProps, ref } from 'vue';
 import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Plus, Minus, StopCircle } from 'lucide-vue-next';
 
 const props = defineProps<{
-	cameraId: number;
+	cameraId: number | string;
 	sendPtzCommand: (command: string, speed?: number) => Promise<void>;
 }>();
 

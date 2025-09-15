@@ -2,7 +2,7 @@
 import { ref, toRefs } from 'vue';
 
 const props = defineProps<{
-	cameraId: number;
+	cameraId: number | string;
 }>();
 const { cameraId } = toRefs(props);
 

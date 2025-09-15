@@ -5,7 +5,7 @@ import type { StreamQuery, QueryExecutionResult, QueryExecutionParams } from '@/
 import { StreamQueryUtils } from '@/types/stream-query';
 
 const props = defineProps<{
-	cameraId: number;
+	cameraId: number | string;
 }>();
 
 const queries = ref<StreamQuery[]>([]);

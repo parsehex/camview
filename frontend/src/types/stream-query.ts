@@ -5,7 +5,7 @@ export interface StreamQuery {
 	responseType: 'string' | 'array';
 	think: boolean;
 	frameCount: number;
-	cameraId: number;
+	cameraId: number | string;
 }
 
 export interface QueryExecutionResult {
@@ -18,7 +18,7 @@ export interface QueryExecutionResult {
 
 export interface QueryExecutionParams {
 	prompt: string;
-	cameraId: number;
+	cameraId: number | string;
 	responseType: 'string' | 'array';
 	think: boolean;
 	frameCount: number;
@@ -26,19 +26,22 @@ export interface QueryExecutionParams {
 
 // Utility functions for managing queries in localStorage
 export const StreamQueryUtils = {
-	getQueriesForCamera(cameraId: number): StreamQuery[] {
+	getQueriesForCamera(cameraId: number | string): StreamQuery[] {
 		const key = `streamQueries-${cameraId}`;
 		const stored = localStorage.getItem(key);
 		return stored ? JSON.parse(stored) : [];
 	},
 
-	saveQueriesForCamera(cameraId: number, queries: StreamQuery[]): void {
+	saveQueriesForCamera(
+		cameraId: number | string,
+		queries: StreamQuery[]
+	): void {
 		const key = `streamQueries-${cameraId}`;
 		localStorage.setItem(key, JSON.stringify(queries));
 	},
 
 	addQuery(
-		cameraId: number,
+		cameraId: number | string,
 		query: Omit<StreamQuery, 'id' | 'cameraId'>
 	): StreamQuery {
 		const queries = this.getQueriesForCamera(cameraId);
@@ -53,7 +56,7 @@ export const StreamQueryUtils = {
 	},
 
 	updateQuery(
-		cameraId: number,
+		cameraId: number | string,
 		queryId: string,
 		updates: Partial<Omit<StreamQuery, 'id' | 'cameraId'>>
 	): StreamQuery | null {
@@ -66,7 +69,7 @@ export const StreamQueryUtils = {
 		return queries[index];
 	},
 
-	deleteQuery(cameraId: number, queryId: string): boolean {
+	deleteQuery(cameraId: number | string, queryId: string): boolean {
 		const queries = this.getQueriesForCamera(cameraId);
 		const filtered = queries.filter((q) => q.id !== queryId);
 		if (filtered.length === queries.length) return false;
@@ -75,7 +78,7 @@ export const StreamQueryUtils = {
 		return true;
 	},
 
-	getQuery(cameraId: number, queryId: string): StreamQuery | null {
+	getQuery(cameraId: number | string, queryId: string): StreamQuery | null {
 		const queries = this.getQueriesForCamera(cameraId);
 		return queries.find((q) => q.id === queryId) || null;
 	},

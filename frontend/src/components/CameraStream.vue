@@ -8,7 +8,7 @@ import CustomStreamQuery from './CustomStreamQuery.vue';
 import StreamQueryManager from './StreamQueryManager.vue';
 
 const props = defineProps<{
-	cameraId: number;
+	cameraId: number | string;
 	rtspUrl: string;
 }>();
 

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import CameraStream from '../components/CameraStream.vue';
-import DiscoverCameras from '@/components/DiscoverCameras.vue';
+import CameraStream from '@/components/CameraStream.vue';
+import AddCameraForm from '@/components/AddCameraForm.vue';
+import EditCameraForm from '@/components/EditCameraForm.vue';
 
 interface Camera {
 	id?: number;
@@ -13,8 +14,7 @@ interface Camera {
 }
 
 const cameras = ref<Camera[]>([]);
-const newCamera = ref<Camera>({ name: '', rtspUrl: '', onvifUrl: '', username: '', password: '' });
-const editingCamera = ref<Camera | null>(null); // To hold the camera being edited
+const editingCamera = ref<Camera | null>(null);
 
 const fetchCameras = async () => {
 	try {
@@ -22,29 +22,6 @@ const fetchCameras = async () => {
 		cameras.value = await response.json();
 	} catch (error) {
 		console.error('Error fetching cameras:', error);
-	}
-};
-
-const addCamera = async () => {
-	try {
-		// Assuming newCamera.rtspUrl is now used for the host input
-		const response = await fetch('http://localhost:3000/api/cameras', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				name: newCamera.value.name,
-				host: newCamera.value.rtspUrl, // This is actually the host for ONVIF discovery
-				username: newCamera.value.username,
-				password: newCamera.value.password
-			}),
-		});
-		const addedCamera = await response.json();
-		cameras.value.push(addedCamera);
-		newCamera.value = { name: '', rtspUrl: '', onvifUrl: '', username: '', password: '' }; // Clear form
-	} catch (error) {
-		console.error('Error adding camera:', error);
 	}
 };
 
@@ -56,19 +33,19 @@ const cancelEdit = () => {
 	editingCamera.value = null;
 };
 
-const saveCamera = async () => {
-	if (!editingCamera.value || !editingCamera.value.id) return;
+const saveCamera = async (camera: Camera) => {
+	if (!camera.id) return;
 
 	try {
-		const response = await fetch(`http://localhost:3000/api/cameras/${editingCamera.value.id}`, {
+		const response = await fetch(`http://localhost:3000/api/cameras/${camera.id}`, {
 			method: 'PUT',
 			headers: {
 				'Content-Type': 'application/json',
 			},
-			body: JSON.stringify(editingCamera.value),
+			body: JSON.stringify(camera),
 		});
 		const updatedCamera = await response.json();
-		const index = cameras.value.findIndex(c => c.id === updatedCamera.id);
+		const index = cameras.value.findIndex(c => c.id?.toString() === updatedCamera.id?.toString());
 		if (index !== -1) {
 			cameras.value[index] = updatedCamera;
 		}
@@ -101,39 +78,8 @@ const deleteCamera = async (id: number | undefined) => {
 		<h1 class="text-2xl font-bold mb-4">Camera Management</h1>
 		<ul v-if="cameras.length" class="list-none p-0 mb-7.5">
 			<li v-for="camera in cameras" :key="camera.id" class="border border-gray-200 p-2.5 mb-2 rounded">
-				<div v-if="editingCamera && editingCamera.id === camera.id"
-					class="mt-2.5 p-2.5 border border-gray-300 rounded-md bg-white">
-					<h3 class="text-lg font-semibold mb-2">Edit Camera</h3>
-					<div class="mb-2.5">
-						<label :for="`editName-${camera.id}`" class="block mb-1.25 font-bold">Name:</label>
-						<input type="text" :id="`editName-${camera.id}`" v-model="editingCamera.name" required
-							class="w-full p-2 border border-gray-300 rounded" />
-					</div>
-					<div class="mb-2.5">
-						<label :for="`editRtspUrl-${camera.id}`" class="block mb-1.25 font-bold">RTSP URL:</label>
-						<input type="text" :id="`editRtspUrl-${camera.id}`" v-model="editingCamera.rtspUrl" required
-							class="w-full p-2 border border-gray-300 rounded" />
-					</div>
-					<div class="mb-2.5">
-						<label :for="`editOnvifUrl-${camera.id}`" class="block mb-1.25 font-bold">ONVIF URL (Optional):</label>
-						<input type="text" :id="`editOnvifUrl-${camera.id}`" v-model="editingCamera.onvifUrl"
-							class="w-full p-2 border border-gray-300 rounded" />
-					</div>
-					<div class="mb-2.5">
-						<label :for="`editUsername-${camera.id}`" class="block mb-1.25 font-bold">Username:</label>
-						<input type="text" :id="`editUsername-${camera.id}`" v-model="editingCamera.username" required
-							class="w-full p-2 border border-gray-300 rounded" />
-					</div>
-					<div class="mb-2.5">
-						<label :for="`editPassword-${camera.id}`" class="block mb-1.25 font-bold">Password:</label>
-						<input type="password" :id="`editPassword-${camera.id}`" v-model="editingCamera.password" required
-							class="w-full p-2 border border-gray-300 rounded" />
-					</div>
-					<button @click="saveCamera"
-						class="bg-blue-600 text-white px-3.75 py-2.5 border-none rounded cursor-pointer text-base hover:bg-blue-700 mr-2.5">Save</button>
-					<button @click="cancelEdit"
-						class="bg-gray-600 text-white px-3.75 py-2.5 border-none rounded cursor-pointer text-base hover:bg-gray-700">Cancel</button>
-				</div>
+				<EditCameraForm v-if="editingCamera && editingCamera.id === camera.id" :camera="camera" @save="saveCamera"
+					@cancel="cancelEdit" />
 				<div v-else class="flex flex-col items-center justify-between">
 					<span>{{ camera.name }} ({{ camera.rtspUrl }}) <button @click="editCamera(camera)"
 							class="bg-blue-600 text-white px-3.75 py-2.5 border-none rounded cursor-pointer text-base hover:bg-blue-700 mr-2.5">Edit</button>
@@ -145,34 +91,7 @@ const deleteCamera = async (id: number | undefined) => {
 			</li>
 		</ul>
 		<div class="flex gap-7.5 w-full items-start mb-7.5">
-			<div class="flex-grow p-3.75 border border-gray-400 rounded-lg">
-				<h2 class="text-gray-800 mb-3.75">Add a Camera</h2>
-				<form @submit.prevent="addCamera">
-					<div class="mb-2.5">
-						<label for="newName" class="block mb-1.25 font-bold">Name:</label>
-						<input type="text" id="newName" v-model="newCamera.name" required
-							class="w-full p-2 border border-gray-300 rounded" />
-					</div>
-					<div class="mb-2.5">
-						<label for="newHost" class="block mb-1.25 font-bold">Host (IP or Domain):</label>
-						<input type="text" id="newHost" placeholder="127.0.0.1" v-model="newCamera.rtspUrl" required
-							class="w-full p-2 border border-gray-300 rounded" />
-					</div>
-					<div class="mb-2.5">
-						<label for="newUsername" class="block mb-1.25 font-bold">Username:</label>
-						<input type="text" id="newUsername" v-model="newCamera.username"
-							class="w-full p-2 border border-gray-300 rounded" />
-					</div>
-					<div class="mb-2.5">
-						<label for="newPassword" class="block mb-1.25 font-bold">Password:</label>
-						<input type="password" id="newPassword" v-model="newCamera.password"
-							class="w-full p-2 border border-gray-300 rounded" />
-					</div>
-					<button type="submit"
-						class="bg-green-600 text-white px-3.75 py-2.5 border-none rounded cursor-pointer text-base hover:bg-green-700">Add</button>
-				</form>
-			</div>
-			<DiscoverCameras @select="newCamera.rtspUrl = $event" />
+			<AddCameraForm @camera-added="fetchCameras" />
 		</div>
 	</div>
 </template>
