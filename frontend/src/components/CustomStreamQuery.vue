@@ -3,8 +3,10 @@ import { ref, toRefs } from 'vue';
 
 const props = defineProps<{
 	cameraId: number | string;
+	isStreaming: boolean;
+	captureFrames: (count?: number) => Promise<string[]>;
 }>();
-const { cameraId } = toRefs(props);
+const { cameraId, isStreaming, captureFrames } = toRefs(props);
 
 const ollamaPrompt = ref(localStorage.getItem(`ollamaPrompt-${cameraId.value}`) || '');
 const ollamaResponse = ref('');
@@ -36,6 +38,7 @@ const queryOllama = async () => {
 				isCustom: true,
 				prompt: ollamaPrompt.value,
 				cameraId: cameraId.value,
+				imagesFromFrontend: isStreaming.value ? await captureFrames.value(1) : undefined,
 			}),
 		});
 

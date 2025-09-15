@@ -22,7 +22,7 @@ const port: number = 3000;
 
 expressWs.default(app); // Extend express app with websockets
 
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
 
 // CORS for frontend
 app.use((req: Request, res: Response, next: NextFunction) => {

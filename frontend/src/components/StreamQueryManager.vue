@@ -6,6 +6,8 @@ import { StreamQueryUtils } from '@/types/stream-query';
 
 const props = defineProps<{
 	cameraId: number | string;
+	isStreaming: boolean;
+	captureFrames: (count?: number) => Promise<string[]>;
 }>();
 
 const queries = ref<StreamQuery[]>([]);
@@ -104,7 +106,8 @@ const runQuery = async (query: StreamQuery) => {
 				cameraId: props.cameraId,
 				responseType: query.responseType,
 				think: query.think,
-				frameCount: query.frameCount
+				frameCount: query.frameCount,
+				imagesFromFrontend: props.isStreaming ? await props.captureFrames(query.frameCount) : undefined,
 			}),
 		});
 

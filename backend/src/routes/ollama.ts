@@ -59,6 +59,7 @@ router.post('/query', async (req, res) => {
 			think = false,
 			frameCount = 1,
 			isCustom = false,
+			imagesFromFrontend,
 		} = req.body;
 
 		if (!ollamaHost) {
@@ -75,8 +76,12 @@ router.post('/query', async (req, res) => {
 		}
 
 		const frameCountNum = Math.max(1, Math.min(Number(frameCount), 10)); // Limit to 1-10 frames
-		const imagesBase64 =
-			frameCountNum > 1
+		let imagesBase64 =
+			imagesFromFrontend &&
+			Array.isArray(imagesFromFrontend) &&
+			imagesFromFrontend.length > 0
+				? imagesFromFrontend
+				: frameCountNum > 1
 				? await getFramesAsBase64(cameraId, frameCountNum, 2500)
 				: [await getFrameAsBase64(cameraId)];
 
@@ -86,8 +91,12 @@ router.post('/query', async (req, res) => {
 		});
 
 		// Send all images as the first lines, separated by newlines
-		for (const imageBase64 of imagesBase64) {
-			res.write(`data:image/jpeg;base64,${imageBase64}\n`);
+		for (const b64 of imagesBase64) {
+			const hasPrefix = b64.startsWith('data:image/jpeg;base64,');
+			let str = '';
+			if (!hasPrefix) str += 'data:image/jpeg;base64,';
+			str += b64 + '\n';
+			res.write(str);
 		}
 
 		const ollamaInstance = new Ollama({ host: ollamaHost });

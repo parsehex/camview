@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onBeforeUnmount } from 'vue';
+import { ref, onBeforeUnmount, defineExpose } from 'vue';
 import { Play, Square, RotateCw, Code } from 'lucide-vue-next';
 import mpegts from 'mpegts.js';
 import PtzControls from './PtzControls.vue';
@@ -211,6 +211,40 @@ const stopStream = () => {
 onBeforeUnmount(() => {
 	stopStream();
 });
+
+const captureFrames = async (count: number = 1): Promise<string[]> => {
+	if (!videoRef.value || !isStreaming.value) {
+		console.warn('Cannot capture frame: video not playing or element not available.');
+		return [];
+	}
+
+	const frames: string[] = [];
+	const canvas = document.createElement('canvas');
+	const video = videoRef.value;
+
+	canvas.width = video.videoWidth;
+	canvas.height = video.videoHeight;
+	const ctx = canvas.getContext('2d');
+
+	if (!ctx) {
+		console.error('Failed to get 2D context from canvas.');
+		return [];
+	}
+
+	for (let i = 0; i < count; i++) {
+		ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+		frames.push(canvas.toDataURL('image/jpeg').replace('data:image/jpeg;base64,', ''));
+		if (i < count - 1) {
+			await delay(1000); // 1-second interval between frames
+		}
+	}
+	return frames;
+};
+
+defineExpose({
+	isStreaming,
+	captureFrames,
+});
 </script>
 <template>
 	<div class="flex gap-5 mt-2 flex-wrap">
@@ -243,7 +277,9 @@ onBeforeUnmount(() => {
 			<button @click="switchOllamaView('simple')" :class="getToggleButtonClass('simple')"> Simple </button>
 			<button @click="switchOllamaView('advanced')" :class="getToggleButtonClass('advanced')"> Advanced </button>
 		</div>
-		<CustomStreamQuery v-if="ollamaViewMode === 'simple'" :camera-id="cameraId" />
-		<StreamQueryManager v-if="ollamaViewMode === 'advanced'" :camera-id="cameraId" />
+		<CustomStreamQuery v-if="ollamaViewMode === 'simple'" :camera-id="cameraId" :is-streaming="isStreaming"
+			:capture-frames="captureFrames" />
+		<StreamQueryManager v-if="ollamaViewMode === 'advanced'" :camera-id="cameraId" :is-streaming="isStreaming"
+			:capture-frames="captureFrames" />
 	</div>
 </template>
