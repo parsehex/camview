@@ -49,12 +49,13 @@ jobs:
 
       - name: install frontend dependencies
         run: npm install
+        working-directory: ./frontend
 
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: ./src
+          projectPath: ./frontend/src
           tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'App v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
